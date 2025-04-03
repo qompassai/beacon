@@ -1,0 +1,269 @@
+This file has notes useful for mox developers.
+
+# Code style, guidelines, notes
+
+- Keep the same style as existing code.
+- For Windows: use package "path/filepath" when dealing with files/directories.
+  Test code can pass forward-slashed paths directly to standard library functions,
+  but use proper filepath functions when parameters are passed and in non-test
+  code.  Mailbox names always use forward slash, so use package "path" for mailbox
+  name/path manipulation. Do not remove/rename files that are still open.
+- Not all code uses adns, the DNSSEC-aware resolver. Such as code that makes
+  http requests, like mtasts and autotls/autocert.
+- We don't have an internal/ directory, really just to prevent long paths in
+  the repo, and to keep all Go code matching *.go */*.go (without matching
+  vendor/). Part of the packages are reusable by other software. Those reusable
+  packages must not cause mox implementation details (such as bstore) to get out,
+  which would cause unexpected dependencies. Those packages also only expose the
+  standard slog package for logging, not our mlog package. Packages not intended
+  for reuse do use mlog as it is more convenient. Internally, we always use
+  mlog.Log to do the logging, wrapping an slog.Logger.
+
+# Reusable packages
+
+Most non-server Go packages are meant to be reusable. This means internal
+details are not exposed in the API, and we don't make unneeded changes. We can
+still make breaking changes when it improves mox: We don't want to be stuck
+with bad API. Third party users aren't affected too seriously due to Go's
+minimal version selection. The reusable packages are in apidiff/packages.txt.
+We generate the incompatible changes with each release.
+
+# Web interfaces/frontend
+
+The web interface frontends (for webmail/, webadmin/ and webaccount/) are
+written in strict TypeScript. The web API is a simple self-documenting
+HTTP/JSON RPC API mechanism called sherpa,
+https://www.ueber.net/who/mjl/sherpa/. The web API exposes types and functions
+as implemented in Go, using https://github.com/mjl-/sherpa. API definitions in
+JSON form are generated with https://github.com/mjl-/sherpadoc. Those API
+definitions are used to generate TypeScript clients with by
+https://github.com/mjl-/sherpats/.
+
+The JavaScript that is generated from the TypeScript is included in the
+repository. This makes it available for inclusion in the binary, which is
+practical for users, and desirable given Go's reproducible builds. When
+developing, run "make" to also build the frontend code. Run "make jsinstall"
+once to install the TypeScript compiler into ./node_modules/.
+
+There are no other external (runtime or devtime) frontend dependencies. A
+light-weight abstraction over the DOM is provided by ./lib.ts. A bit more
+manual UI state management must be done compared to "frameworks", but it is
+little code, and this allows JavaScript/TypeScript developer to quickly get
+started. UI state is often encapsulated in a JavaScript object with a
+TypeScript interface exposing a "root" HTMLElement that is added to the DOM,
+and functions for accessing/changing the internal state, keeping the UI
+managable.
+
+# TLS certificates
+
+https://github.com/cloudflare/cfssl is useful for testing with TLS
+certificates. Create a CA and configure it in mox.conf TLS.CA.CertFiles, and
+sign host certificates and configure them in the listeners TLS.KeyCerts.
+
+Setup a local CA with cfssl, run once:
+
+```sh
+go install github.com/cloudflare/cfssl/cmd/cfssl@latest
+go install github.com/cloudflare/cfssl/cmd/cfssljson@latest
+
+mkdir -p local/cfssl
+cd local/cfssl
+
+cfssl print-defaults config > ca-config.json # defaults are fine
+
+# Based on: cfssl print-defaults csr > ca-csr.json
+cat <<EOF >ca-csr.json
+{
+    "CN": "mox ca",
+    "key": {
+        "algo": "ecdsa",
+        "size": 256
+    },
+    "names": [
+        {
+            "C": "NL"
+        }
+    ]
+}
+EOF
+
+cfssl gencert -initca ca-csr.json | cfssljson -bare ca - # Generate ca key and cert.
+
+# Generate wildcard certificates for one or more domains, add localhost for use with pebble, see below.
+domains="moxtest.example localhost"
+for domain in $domains; do
+	cat <<EOF >wildcard.$domain.csr.json
+{
+  "key": {
+    "algo": "ecdsa",
+    "size": 256
+  },
+  "names": [
+  {
+    "O": "mox"
+  }
+  ],
+  "hosts": [
+    "$domain",
+    "*.$domain"
+  ]
+}
+EOF
+	cfssl gencert -ca ca.pem -ca-key ca-key.pem -profile=www wildcard.$domain.csr.json | cfssljson -bare wildcard.$domain
+done
+```
+
+Now configure mox.conf to add the cfssl CA root certificate:
+
+```
+TLS:
+	CA:
+		AdditionalToSystem: true
+		CertFiles:
+			# Assuming local/<env>/config/mox.conf and local/cfssl/.
+			- ../../cfssl/ca.pem
+
+[...]
+
+Listeners:
+	public:
+                TLS:
+			KeyCerts:
+				# Assuming local/<env>/config/mox.conf and local/cfssl/.
+				CertFile: ../../cfssl/wildcard.$domain.pem
+				KeyFile: ../../cfssl/wildcard.$domain-key.pem
+```
+
+# ACME
+
+https://github.com/letsencrypt/pebble is useful for testing with ACME. Start a
+pebble instance that uses the localhost TLS cert/key created by cfssl for its
+TLS serving. Pebble generates a new CA certificate for its own use each time it
+is started. Fetch it from https://localhost:15000/roots/0, write it to a file, and
+add it to mox.conf TLS.CA.CertFiles. See below.
+
+Setup pebble, run once:
+
+```sh
+go install github.com/letsencrypt/pebble/cmd/pebble@latest
+
+mkdir -p local/pebble
+cat <<EOF >local/pebble/config.json
+{
+  "pebble": {
+    "listenAddress": "localhost:14000",
+    "managementListenAddress": "localhost:15000",
+    "certificate": "local/cfssl/localhost.pem",
+    "privateKey": "local/cfssl/localhost-key.pem",
+    "httpPort": 80,
+    "tlsPort": 443,
+    "ocspResponderURL": "",
+    "externalAccountBindingRequired": false
+  }
+}
+EOF
+```
+
+Start pebble, this generates a new temporary pebble CA certificate:
+
+```sh
+pebble -config local/pebble/config.json
+```
+
+Write new CA bundle that includes pebble's temporary CA cert:
+
+```sh
+export CURL_CA_BUNDLE=local/ca-bundle.pem # for curl
+export SSL_CERT_FILE=local/ca-bundle.pem # for go apps
+cat /etc/ssl/certs/ca-certificates.crt local/cfssl/ca.pem >local/ca-bundle.pem
+curl https://localhost:15000/roots/0 >local/pebble/ca.pem # fetch temp pebble ca, DO THIS EVERY TIME PEBBLE IS RESTARTED!
+cat /etc/ssl/certs/ca-certificates.crt local/cfssl/ca.pem local/pebble/ca.pem >local/ca-bundle.pem # create new list that includes cfssl ca and temp pebble ca.
+rm -r local/*/data/acme/keycerts/pebble # remove existing pebble-signed certs in acme cert/key cache, they are invalid due to newly generated temp pebble ca.
+```
+
+Edit mox.conf, adding pebble ACME and its ca.pem:
+
+```
+ACME:
+	pebble:
+		DirectoryURL: https://localhost:14000/dir
+		ContactEmail: root@mox.example
+TLS:
+	CA:
+		AdditionalToSystem: true
+		CertFiles:
+			# Assuming local/<env>/config/mox.conf and local/pebble/ca.pem and local/cfssl/ca.pem.
+			- ../../pebble/ca.pem
+			- ../../cfssl/ca.pem
+
+[...]
+
+Listeners:
+	public:
+                TLS:
+                        ACME: pebble
+```
+
+For mail clients and browsers to accept pebble-signed certificates, you must add
+the temporary pebble CA cert to their trusted root CA store each time pebble is
+started (e.g. to your thunderbird/firefox testing profile). Pebble has no option
+to not regenerate its CA certificate, presumably for fear of people using it for
+non-testing purposes. Unfortunately, this also makes it inconvenient to use for
+testing purposes.
+
+
+# Messages for testing
+
+For compatibility and preformance testing, it helps to have many messages,
+created a long time ago and recently, by different mail user agents. A helpful
+source is the Linux kernel mailing list. Archives are available as multiple git
+repositories (split due to size) at
+https://lore.kernel.org/lkml/_/text/mirror/.  The git repo's can be converted
+to compressed mbox files (about 800MB each) with:
+
+```
+# 0 is the first epoch (with over half a million messages), 12 is last
+# already-complete epoch at the time of writing (with a quarter million
+# messages). The archives are large, converting will take some time.
+for i in 0 12; do
+        git clone --mirror http://lore.kernel.org/lkml/$i lkml-$i.git
+        (cd lkml-$i.git && time ./tombox.sh | gzip >../lkml-$i.mbox.gz)
+done
+```
+
+With the following "tobmox.sh" script:
+
+```
+#!/bin/sh
+pre=''
+for rev in $(git rev-list master | reverse); do
+        printf "$pre"
+        echo "From sender@host  $(date '+%a %b %e %H:%M:%S %Y' -d @$(git show -s --format=%ct $rev))"
+        git show ${rev}:m | sed 's/^>*From />&/'
+        pre='\n'
+done
+```
+
+
+# Release proces
+
+- Gather feedback on recent changes.
+- Check if dependencies need updates.
+- Check code if there are deprecated features that can be removed.
+- Generate apidiff and check if breaking changes can be prevented.
+- Update features & roadmap in README.md
+- Write release notes.
+- Build and run tests with previous major Go release.
+- Run tests, including with race detector.
+- Run integration and upgrade tests.
+- Run fuzzing tests for a while.
+- Deploy to test environment. Test the update instructions.
+- Send and receive email through the major webmail providers, check headers.
+- Send and receive email with imap4/smtp clients.
+- Check DNS check admin page.
+- Check with https://internet.nl
+- Create git tag, push code.
+- Publish new docker image.
+- Publish signed release notes for updates.xmox.nl and update DNS record.
+- Publish new cross-referenced code/rfc to www.xmox.nl/xr/.
+- Create new release on the github page, so watchers get a notification.

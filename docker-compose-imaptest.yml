@@ -1,0 +1,31 @@
+version: '3.7'
+services:
+  mox:
+    build:
+      context: .
+      dockerfile: Dockerfile.moximaptest
+    volumes:
+      - ./testdata/imaptest/config:/mox/config
+      - ./testdata/imaptest/data:/mox/data
+      - ./testdata/imaptest/imaptest.mbox:/mox/imaptest.mbox
+    working_dir: /mox
+    tty: true # For job control with set -m.
+    command: sh -c 'set -m; mox serve & sleep 1; echo testtest | mox setaccountpassword mjl; fg'
+    healthcheck:
+      test: netstat -nlt | grep ':1143 '
+      interval: 1s
+      timeout: 1s
+      retries: 10
+
+  imaptest:
+    build:
+      dockerfile: Dockerfile.imaptest
+      context: .
+    command: host=mox port=1143 'user=mjl@mox.example' pass=testtest mbox=/imaptest/imaptest.mbox
+    working_dir: /imaptest
+    volumes:
+      - ./testdata/imaptest:/imaptest
+    depends_on:
+      mox:
+        condition: service_healthy
+    restart: never

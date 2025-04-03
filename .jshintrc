@@ -1,0 +1,13 @@
+{
+	"esversion": 9,
+	"asi": true,
+	"strict": "implied",
+	"globals": {
+		"self": true,
+		"window": true,
+		"console": true,
+		"document": true,
+		"Node": true,
+		"api": true
+	}
+}
