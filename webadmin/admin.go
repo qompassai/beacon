@@ -1304,7 +1304,7 @@ Ensure a DNS TXT record like the following exists:
 
 After enabling MTA-STS for this domain, remote SMTP servers may still deliver in plain text, without TLS-protection. MTA-STS is an opt-in mechanism, not all servers support it yet.
 
-You can opt-in to MTA-STS by creating a DNS record, _mta-sts.<domain>, and serving a policy at https://mta-sts.<domain>/.well-known/mta-sts.txt. Mox will serve the policy, you must create the DNS records.
+You can opt-in to MTA-STS by creating a DNS record, _mta-sts.<domain>, and serving a policy at https://mta-sts.<domain>/.well-known/mta-sts.txt. Beacon will serve the policy, you must create the DNS records.
 
 You can start with a policy in "testing" mode. Remote SMTP servers will apply the MTA-STS policy, but not abort delivery in case of failure. Instead, you will receive a report if you have TLSRPT configured. By starting in testing mode for a representative period, verifying all mail can be deliverd, you can safely switch to "enforce" mode. While in enforce mode, plaintext deliveries to beacon are refused.
 
@@ -1342,7 +1342,6 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 		}
 
 		// We'll assume if any submissions is configured, it is public. Same for imap. And
-		// if not, that there is a plain option.
 		var submissions, imaps bool
 		for _, l := range beacon.Conf.Static.Listeners {
 			if l.TLS != nil && l.Submissions.Enabled {

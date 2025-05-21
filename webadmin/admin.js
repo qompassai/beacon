@@ -2188,7 +2188,7 @@ const dmarcEvaluationsDomain = async (domain) => {
 		});
 		return r;
 	};
-	dom._kids(page, crumbs(crumblink('Mox Admin', '#'), crumblink('DMARC', '#dmarc'), crumblink('Evaluations', '#dmarc/evaluations'), 'Domain ' + domainString(d)), dom.div(dom.clickbutton('Remove evaluations', async function click(e) {
+	dom._kids(page, crumbs(crumblink('Beacon Admin', '#'), crumblink('DMARC', '#dmarc'), crumblink('Evaluations', '#dmarc/evaluations'), 'Domain ' + domainString(d)), dom.div(dom.clickbutton('Remove evaluations', async function click(e) {
 		const target = e.target;
 		target.disabled = true;
 		try {
@@ -2359,7 +2359,7 @@ const domainDMARCReport = async (d, reportID) => {
 	dom._kids(page, crumbs(crumblink('Mox Admin', '#'), crumblink('Domain ' + domainString(dnsdomain), '#domains/' + d), crumblink('DMARC aggregate reports', '#domains/' + d + '/dmarc'), 'Report ' + reportID), dom.p('Below is the raw report as received from the remote mail server.'), dom.div(dom._class('literal'), JSON.stringify(report, null, '\t')));
 };
 const tlsrptIndex = async () => {
-	dom._kids(page, crumbs(crumblink('Mox Admin', '#'), 'TLSRPT'), dom.ul(dom.li(dom.a(attr.href('#tlsrpt/reports'), 'Reports'), ', incoming TLS reports.'), dom.li(dom.a(attr.href('#tlsrpt/results'), 'Results'), ', for outgoing TLS reports.')));
+	dom._kids(page, crumbs(crumblink('Beacon Admin', '#'), 'TLSRPT'), dom.ul(dom.li(dom.a(attr.href('#tlsrpt/reports'), 'Reports'), ', incoming TLS reports.'), dom.li(dom.a(attr.href('#tlsrpt/results'), 'Results'), ', for outgoing TLS reports.')));
 };
 const tlsrptResults = async () => {
 	const [results, suppressAddresses] = await Promise.all([

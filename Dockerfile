@@ -1,4 +1,4 @@
-# ~/.GH/Qompass/Go/beacon/Dockerfile
+# /qompassai/beacon/Dockerfile
 # -----------------------------------
 # Copyright (C) 2025 Qompass AI, All rights reserved
 

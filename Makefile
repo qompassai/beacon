@@ -7,9 +7,9 @@ build0:
 	CGO_ENABLED=0 go vet ./...
 	CGO_ENABLED=0 go vet -tags integration
 	./gendoc.sh
-	(cd webadmin && CGO_ENABLED=0 go run ../vendor/github.com/mjl-/sherpadoc/cmd/sherpadoc/*.go -adjust-function-names none Admin) >webadmin/api.json
-	(cd webaccount && CGO_ENABLED=0 go run ../vendor/github.com/mjl-/sherpadoc/cmd/sherpadoc/*.go -adjust-function-names none Account) >webaccount/api.json
-	(cd webmail && CGO_ENABLED=0 go run ../vendor/github.com/mjl-/sherpadoc/cmd/sherpadoc/*.go -adjust-function-names none Webmail) >webmail/api.json
+	(cd webadmin && CGO_ENABLED=0 go run ../vendor/github.com/qompassai/sherpadoc/cmd/sherpadoc/*.go -adjust-function-names none Admin) >webadmin/api.json
+	(cd webaccount && CGO_ENABLED=0 go run ../vendor/github.com/qompassai/sherpadoc/cmd/sherpadoc/*.go -adjust-function-names none Account) >webaccount/api.json
+	(cd webmail && CGO_ENABLED=0 go run ../vendor/github.com/qompassai/sherpadoc/cmd/sherpadoc/*.go -adjust-function-names none Webmail) >webmail/api.json
 	./gents.sh webadmin/api.json webadmin/api.ts
 	./gents.sh webaccount/api.json webaccount/api.ts
 	./gents.sh webmail/api.json webmail/api.ts
@@ -26,8 +26,6 @@ test-race:
 	CGO_ENABLED=1 go test -race -shuffle=on -covermode atomic -coverprofile cover.out ./...
 	go tool cover -html=cover.out -o cover.html
 
-# note: if testdata/upgradetest.mbox.gz exists, its messages will be imported
-# during tests. helpful for performance/resource consumption tests.
 test-upgrade:
 	nice ./test-upgrade.sh
 
@@ -56,22 +54,22 @@ fuzz:
 
 
 test-integration:
-	docker image build --pull --no-cache -f Dockerfile -t mox_integration_moxmail .
-	docker image build --pull --no-cache -f testdata/integration/Dockerfile.test -t mox_integration_test testdata/integration
-	-rm -rf testdata/integration/moxacmepebble/data
-	-rm -rf testdata/integration/moxmail2/data
+	docker image build --pull --no-cache -f Dockerfile -t beacon_integration_beaconmail .
+	docker image build --pull --no-cache -f testdata/integration/Dockerfile.test -t beacon_integration_test testdata/integration
+	-rm -rf testdata/integration/beaconacmepebble/data
+	-rm -rf testdata/integration/beaconmail2/data
 	-rm -f testdata/integration/tmp-pebble-ca.pem
-	MOX_UID=$$(id -u) docker-compose -f docker-compose-integration.yml run test
+	BEACON_UID=$$(id -u) docker-compose -f docker-compose-integration.yml run test
 	docker-compose -f docker-compose-integration.yml down --timeout 1
 
 
 imaptest-build:
-	-docker-compose -f docker-compose-imaptest.yml build --no-cache --pull mox
+	-docker-compose -f docker-compose-imaptest.yml build --no-cache --pull beacon
 
 imaptest-run:
 	-rm -r testdata/imaptest/data
 	mkdir testdata/imaptest/data
-	docker-compose -f docker-compose-imaptest.yml run --entrypoint /usr/local/bin/imaptest imaptest host=mox port=1143 user=mjl@mox.example pass=testtest mbox=imaptest.mbox
+	docker-compose -f docker-compose-imaptest.yml run --entrypoint /usr/local/bin/imaptest imaptest host=beacon port=1143 user=qompassai@beacon.example pass=testtest mbox=imaptest.mbox
 	docker-compose -f docker-compose-imaptest.yml down
 
 
@@ -112,7 +110,7 @@ genapidiff:
 	./apidiff.sh
 
 docker:
-	docker build -t mox:dev .
+	docker build -t beacon:dev .
 
 docker-release:
 	./docker-release.sh

@@ -9,15 +9,25 @@
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
+    # Dev shell configuration
     devShells.${system}.default = pkgs.mkShell {
-      packages = [ 
-        pkgs.go_1_24
-        pkgs.zig
-      ];
+      packages = [ pkgs.go pkgs.zig ];
+    };
 
-      shellHook = ''
-        echo "Using Go $(go version)"
-        echo "Using Zig $(zig version)"
+    # Add package output
+    packages.${system}.default = pkgs.stdenv.mkDerivation {
+      name = "beacon";
+      src = ./.;
+      
+      buildInputs = [ pkgs.go pkgs.zig ];
+      
+      buildPhase = ''
+        go build -o beacon
+      '';
+      
+      installPhase = ''
+        mkdir -p $out/bin
+        cp beacon $out/bin/
       '';
     };
   };

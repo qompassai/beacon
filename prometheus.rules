@@ -1,29 +1,29 @@
-# example prometheus alerting rules file for mox.
+# example prometheus alerting rules file for Beacon.
 
 groups:
-- name: mox
+- name: beacon
   rules:
-  - alert: mox-panic
-    expr: increase(mox_panic_total[1h]) > 0
+  - alert: beacon-panic
+    expr: increase(beacon_panic_total[1h]) > 0
     annotations:
       summary: unhandled panic
 
-  - alert: mox-ip-on-dns-blocklist
-    expr: mox_dnsbl_ips_success < 1
+  - alert: beacon-ip-on-dns-blocklist
+    expr: beacon_dnsbl_ips_success < 1
     annotations:
       summary: ip is on dns blocklist
 
-  - alert: mox-queue-failing-delivery
-    expr: increase(mox_queue_delivery_duration_seconds_count{attempt!~"[123]",result!="ok"}[1h]) > 0
+  - alert: beacon-queue-failing-delivery
+    expr: increase(beacon_queue_delivery_duration_seconds_count{attempt!~"[123]",result!="ok"}[1h]) > 0
     annotations:
       summary: delivery from queue had a 4th or later attempt fail
 
-  - alert: mox-smtpserver-errors
+  - alert: beacon-smtpserver-errors
     expr: increase(mox_smtpserver_errors_total[1h]) > 0
     annotations:
       summary: errors in smtpserver operation
 
-  - alert: mox-webserver-errors
+  - alert: beacon-webserver-errors
     expr: increase(mox_httpserver_request_duration_seconds_count{code=~"5.."}[1h]) > 0
     annotations:
       summary: http 5xx responses from webserver

@@ -220,7 +220,7 @@ func importctl(ctx context.Context, ctl *ctl, mbox bool) {
 	// starting with junk or spam is junk mail.
 
 	// First check if we can access the mbox/maildir.
-	// Mox needs to be able to access those files, the user running the import command
+	// Beacon needs to be able to access those files, the user running the import command
 	// may be a different user who can access the files.
 	if mbox {
 		mboxf, err = os.Open(src)

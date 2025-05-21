@@ -2,7 +2,7 @@
 
 // From HTML.
 declare let page: HTMLElement
-declare let moxversion: string
+declare let beaconversion: string
 
 const login = async (reason: string) => {
 	return new Promise<string>((resolve: (v: string) => void, _) => {
@@ -96,7 +96,7 @@ const localStorageRemove = (k: string) => {
 	}
 }
 
-const client = new api.Client().withOptions({csrfHeader: 'x-mox-csrf', login: login}).withAuthToken(localStorageGet('webaccountcsrftoken') || '')
+const client = new api.Client().withOptions({csrfHeader: 'x-beacon-csrf', login: login}).withAuthToken(localStorageGet('webaccountcsrftoken') || '')
 
 const link = (href: string, anchorOpt: string) => dom.a(attr.href(href), attr.rel('noopener noreferrer'), anchorOpt || href)
 

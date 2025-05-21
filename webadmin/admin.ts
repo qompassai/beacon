@@ -2,7 +2,7 @@
 
 // From HTML.
 declare let page: HTMLElement
-declare let moxversion: string
+declare let beaconversion: string
 
 const login = async (reason: string) => {
 	return new Promise<string>((resolve: (v: string) => void, _) => {
@@ -1231,7 +1231,7 @@ const dmarcEvaluations = async () => {
 
 	dom._kids(page,
 		crumbs(
-			crumblink('Mox Admin', '#'),
+			crumblink('Beacon Admin', '#'),
 			crumblink('DMARC', '#dmarc'),
 			'Evaluations',
 		),
@@ -1679,7 +1679,7 @@ const domainDMARCReport = async (d: string, reportID: number) => {
 
 	dom._kids(page,
 		crumbs(
-			crumblink('Mox Admin', '#'),
+			crumblink('Beacon Admin', '#'),
 			crumblink('Domain ' + domainString(dnsdomain), '#domains/'+d),
 			crumblink('DMARC aggregate reports', '#domains/' + d + '/dmarc'),
 			'Report ' + reportID
@@ -2922,7 +2922,7 @@ const webserver = async () => {
 
 	dom._kids(page,
 		crumbs(
-			crumblink('Mox Admin', '#'),
+			crumblink('Beacon Admin', '#'),
 			'Webserver config',
 		),
 		dom.form(

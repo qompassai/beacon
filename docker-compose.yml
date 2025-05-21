@@ -1,18 +1,18 @@
-# Before launching mox, run the quickstart to create config files for running as
-# user the mox user (create it on the host system first, e.g. "useradd -d $PWD mox"):
+# Before launching beacon, run the quickstart to create config files for running as
+# user the beacon user (create it on the host system first, e.g. "useradd -d $PWD beacon"):
 #
 #	mkdir config data web
-# 	docker-compose run mox mox quickstart you@yourdomain.example $(id -u mox)
+# 	docker-compose run beacon beacon quickstart you@yourdomain.example $(id -u beacon)
 #
 # note: if you are running quickstart on a different machine than you will deploy
-# mox to, use the "quickstart -hostname ..." flag.
+# beacon to, use the "quickstart -hostname ..." flag.
 #
-# After following the quickstart instructions you can start mox:
+# After following the quickstart instructions you can start beacon:
 #
 # 	docker-compose up
 #
 #
-# If you want to run "mox localserve", you could start it like this:
+# If you want to run "beacon localserve", you could start it like this:
 #
 #	docker run \
 #		-p 127.0.0.1:25:1025 \
@@ -22,29 +22,29 @@
 #		-p 127.0.0.1:143:1143 \
 #		-p 127.0.0.1:443:1443 \
 #		-p 127.0.0.1:80:1080 \
-#		r.xmox.nl/mox:latest mox localserve -ip 0.0.0.0
+#		r.xbeacon.nl/beacon:latest beacon localserve -ip 0.0.0.0
 #
-# The -ip flag ensures connections to the published ports make it to mox, and it
+# The -ip flag ensures connections to the published ports make it to beacon, and it
 # prevents listening on ::1 (IPv6 is not enabled in docker by default).
 
 version: '3.7'
 services:
-  mox:
-    # Replace "latest" with the version you want to run, see https://r.xmox.nl/r/mox/.
+  beacon:
+    # Replace "latest" with the version you want to run, see https://r.xbeacon.nl/r/beacon/.
     # Include the @sha256:... digest to ensure you get the listed image.
-    image: r.xmox.nl/mox:latest
+    image: r.xbeacon.nl/beacon:latest
     environment:
-      - MOX_DOCKER=yes # Quickstart won't try to write systemd service file.
-    # Mox needs host networking because it needs access to the IPs of the
+      - BEACON_DOCKER=yes # Quickstart won't try to write systemd service file.
+    # Beacon needs host networking because it needs access to the IPs of the
     # machine, and the IPs of incoming connections for spam filtering.
     network_mode: 'host'
     volumes:
-      - ./config:/mox/config
-      - ./data:/mox/data
+      - ./config:/beacon/config
+      - ./data:/beacon/data
       # web is optional but recommended to bind in, useful for serving static files with
       # the webserver.
-      - ./web:/mox/web
-    working_dir: /mox
+      - ./web:/beacon/web
+    working_dir: /beacon
     restart: on-failure
     healthcheck:
       test: netstat -nlt | grep ':25 '

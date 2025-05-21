@@ -1,5 +1,5 @@
 [Unit]
-Description=mox mail server
+Description=beacon mail server
 After=network-online.target
 Wants=network-online.target
 
@@ -7,18 +7,18 @@ Wants=network-online.target
 UMask=007
 LimitNOFILE=65535
 Type=simple
-# Mox starts as root, but drops privileges after binding network addresses.
-WorkingDirectory=/home/mox
-ExecStart=/home/mox/mox serve
+# Beacon starts as root, but drops privileges after binding network addresses.
+WorkingDirectory=/home/.beacon
+ExecStart=/home/.beacon/beacon serve
 RestartSec=5s
 Restart=always
-ExecStop=/home/mox/mox stop
+ExecStop=/home/.beacon/beacon stop
 
 # Isolate process, reducing attack surface.
 PrivateDevices=yes
 PrivateTmp=yes
 ProtectSystem=strict
-ReadWritePaths=/home/mox/config /home/mox/data
+ReadWritePaths=/home/.config/beacon /home/.beacon/data
 ProtectKernelTunables=yes
 ProtectControlGroups=yes
 AmbientCapabilities=
@@ -46,7 +46,7 @@ SystemCallFilter=@system-service
 #PrivateUsers=yes
 
 # To check security-related settings:
-# sudo systemd-analyze security mox.service
+# sudo systemd-analyze security beacon.service
 
 [Install]
 WantedBy=multi-user.target

@@ -1178,7 +1178,7 @@ describe-static" and "beacon config describe-domains":
 
 # Examples
 
-Mox includes configuration files to illustrate common setups. You can see these
+Beacon includes configuration files to illustrate common setups. You can see these
 examples with "beacon example", and print a specific example with "beacon example
 <name>". Below are all examples included in beacon.
 

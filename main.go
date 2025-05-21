@@ -34,12 +34,12 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/adns"
+	"github.com/qompassai/adns"
 
-	"github.com/mjl-/autocert"
-	"github.com/mjl-/bstore"
-	"github.com/mjl-/sconf"
-	"github.com/mjl-/sherpa"
+	"github.com/qompassai/autocert"
+	"github.com/qompassai/bstore"
+	"github.com/qompassai/sconf"
+	"github.com/qompassai/sherpa"
 
 	"github.com/qompassai/beacon/config"
 	"github.com/qompassai/beacon/dane"
@@ -67,8 +67,8 @@ import (
 )
 
 var (
-	changelogDomain = "xbeacon.nl"
-	changelogURL    = "https://updates.xbeacon.nl/changelog"
+	changelogDomain = "qompass.ai/beacon/changelog"
+	changelogURL    = "https://updates.qompass.ai/beacon/changelog"
 	changelogPubKey = base64Decode("sPNiTDQzvb4FrytNEiebJhgyQzn57RwEjNbGWMM/bDY=")
 )
 
@@ -568,7 +568,7 @@ func cmdConfigDescribeStatic(c *cmd) {
 	c.params = ">beacon.conf"
 	c.help = `Prints an annotated empty configuration for use as beacon.conf.
 
-The static configuration file cannot be reloaded while beacon is running. Mox has
+The static configuration file cannot be reloaded while beacon is running. Beacon has
 to be restarted for changes to the static configuration file to take effect.
 
 This configuration file needs modifications to make it valid. For example, it
@@ -590,7 +590,7 @@ func cmdConfigDescribeDomains(c *cmd) {
 The domains configuration file contains the domains and their configuration,
 and accounts and their configuration. This includes the configured email
 addresses. The beacon admin web interface, and the beacon command line interface, can
-make changes to this file. Mox automatically reloads this file when it changes.
+make changes to this file. Beacon automatically reloads this file when it changes.
 
 Like the static configuration, the example domains.conf printed by this command
 needs modifications to make it valid.

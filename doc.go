@@ -112,7 +112,7 @@ hostname, and as fallback uses the label plus the domain of the email address
 you specified. Use flag -hostname to explicitly specify the hostname beacon will
 run on.
 
-Mox is by far easiest to operate if you let it listen on port 443 (HTTPS) and
+Beacon is by far easiest to operate if you let it listen on port 443 (HTTPS) and
 80 (HTTP). TLS will be fully automatic with ACME with Let's Encrypt.
 
 You can run beacon along with an existing webserver, but because of MTA-STS and
