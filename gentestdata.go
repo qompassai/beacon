@@ -12,20 +12,20 @@ import (
 	"github.com/mjl-/bstore"
 	"github.com/mjl-/sconf"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 func cmdGentestdata(c *cmd) {
@@ -55,22 +55,22 @@ func cmdGentestdata(c *cmd) {
 	}
 
 	ctxbg := context.Background()
-	mox.Conf.Log[""] = mlog.LevelInfo
-	mlog.SetConfig(mox.Conf.Log)
+	beacon.Conf.Log[""] = mlog.LevelInfo
+	mlog.SetConfig(beacon.Conf.Log)
 
 	const domainsConf = `
 Domains:
-	mox.example: nil
+	beacon.example: nil
 	☺.example: nil
 Accounts:
 	test0:
-		Domain: mox.example
+		Domain: beacon.example
 		Destinations:
-			test0@mox.example: nil
+			test0@beacon.example: nil
 	test1:
-		Domain: mox.example
+		Domain: beacon.example
 		Destinations:
-			test1@mox.example: nil
+			test1@beacon.example: nil
 	test2:
 		Domain: ☺.example
 		Destinations:
@@ -84,13 +84,13 @@ Accounts:
 				IgnoreWords: 0.1
 `
 
-	mox.ConfigStaticPath = filepath.FromSlash("/tmp/mox-bogus/mox.conf")
-	mox.ConfigDynamicPath = filepath.FromSlash("/tmp/mox-bogus/domains.conf")
-	mox.Conf.DynamicLastCheck = time.Now() // Should prevent warning.
-	mox.Conf.Static = config.Static{
+	beacon.ConfigStaticPath = filepath.FromSlash("/tmp/beacon-bogus/beacon.conf")
+	beacon.ConfigDynamicPath = filepath.FromSlash("/tmp/beacon-bogus/domains.conf")
+	beacon.Conf.DynamicLastCheck = time.Now() // Should prevent warning.
+	beacon.Conf.Static = config.Static{
 		DataDir: destDataDir,
 	}
-	err = sconf.Parse(strings.NewReader(domainsConf), &mox.Conf.Dynamic)
+	err = sconf.Parse(strings.NewReader(domainsConf), &beacon.Conf.Dynamic)
 	xcheckf(err, "parsing domains config")
 
 	const dmarcReport = `<?xml version="1.0" encoding="UTF-8" ?>
@@ -106,7 +106,7 @@ Accounts:
     </date_range>
   </report_metadata>
   <policy_published>
-    <domain>mox.example</domain>
+    <domain>beacon.example</domain>
     <adkim>r</adkim>
     <aspf>r</aspf>
     <p>reject</p>
@@ -154,7 +154,7 @@ Accounts:
          "policy-type": "sts",
          "policy-string": ["version: STSv1","mode: testing",
                "mx: *.mail.company-y.example","max_age: 86400"],
-         "policy-domain": "mox.example",
+         "policy-domain": "beacon.example",
          "mx-host": ["*.mail.company-y.example"]
        },
        "summary": {
@@ -184,15 +184,15 @@ Accounts:
      }]
    }`
 
-	err = os.WriteFile(filepath.Join(destDataDir, "moxversion"), []byte(moxvar.Version), 0660)
-	xcheckf(err, "writing moxversion")
+	err = os.WriteFile(filepath.Join(destDataDir, "beaconversion"), []byte(beaconvar.Version), 0660)
+	xcheckf(err, "writing beaconversion")
 
 	// Populate dmarc.db.
 	err = dmarcdb.Init()
 	xcheckf(err, "dmarcdb init")
 	report, err := dmarcrpt.ParseReport(strings.NewReader(dmarcReport))
 	xcheckf(err, "parsing dmarc aggregate report")
-	err = dmarcdb.AddReport(ctxbg, report, dns.Domain{ASCII: "mox.example"})
+	err = dmarcdb.AddReport(ctxbg, report, dns.Domain{ASCII: "beacon.example"})
 	xcheckf(err, "adding dmarc aggregate report")
 
 	// Populate mtasts.db.
@@ -208,7 +208,7 @@ Accounts:
 		},
 		MaxAgeSeconds: 1296000,
 	}
-	err = mtastsdb.Upsert(ctxbg, dns.Domain{ASCII: "mox.example"}, "123", &mtastsPolicy, mtastsPolicy.String())
+	err = mtastsdb.Upsert(ctxbg, dns.Domain{ASCII: "beacon.example"}, "123", &mtastsPolicy, mtastsPolicy.String())
 	xcheckf(err, "adding mtastsdb report")
 
 	// Populate tlsrpt.db.
@@ -217,20 +217,20 @@ Accounts:
 	tlsreportJSON, err := tlsrpt.Parse(strings.NewReader(tlsReport))
 	xcheckf(err, "parsing tls report")
 	tlsr := tlsreportJSON.Convert()
-	err = tlsrptdb.AddReport(ctxbg, c.log, dns.Domain{ASCII: "mox.example"}, "tlsrpt@mox.example", false, &tlsr)
+	err = tlsrptdb.AddReport(ctxbg, c.log, dns.Domain{ASCII: "beacon.example"}, "tlsrpt@beacon.example", false, &tlsr)
 	xcheckf(err, "adding tls report")
 
 	// Populate queue, with a message.
 	err = queue.Init()
 	xcheckf(err, "queue init")
 	mailfrom := smtp.Path{Localpart: "other", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "other.example"}}}
-	rcptto := smtp.Path{Localpart: "test0", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "mox.example"}}}
+	rcptto := smtp.Path{Localpart: "test0", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "beacon.example"}}}
 	prefix := []byte{}
 	mf := tempfile()
 	xcheckf(err, "temp file for queue message")
 	defer os.Remove(mf.Name())
 	defer mf.Close()
-	const qmsg = "From: <test0@mox.example>\r\nTo: <other@remote.example>\r\nSubject: test\r\n\r\nthe message...\r\n"
+	const qmsg = "From: <test0@beacon.example>\r\nTo: <other@remote.example>\r\nSubject: test\r\n\r\nthe message...\r\n"
 	_, err = fmt.Fprint(mf, qmsg)
 	xcheckf(err, "writing message")
 	qm := queue.MakeMsg("test0", mailfrom, rcptto, false, false, int64(len(qmsg)), "<test@localhost>", prefix, nil)
@@ -254,7 +254,7 @@ Accounts:
 	err = accTest1.DB.Write(ctxbg, func(tx *bstore.Tx) error {
 		inbox, err := bstore.QueryTx[store.Mailbox](tx).FilterNonzero(store.Mailbox{Name: "Inbox"}).Get()
 		xcheckf(err, "looking up inbox")
-		const msg = "From: <other@remote.example>\r\nTo: <test1@mox.example>\r\nSubject: test\r\n\r\nthe message...\r\n"
+		const msg = "From: <other@remote.example>\r\nTo: <test1@beacon.example>\r\nSubject: test\r\n\r\nthe message...\r\n"
 		m := store.Message{
 			MailboxID:          inbox.ID,
 			MailboxOrigID:      inbox.ID,
@@ -268,7 +268,7 @@ Accounts:
 			MailFromLocalpart:  smtp.Localpart("other"),
 			MailFromDomain:     "remote.example",
 			RcptToLocalpart:    "test1",
-			RcptToDomain:       "mox.example",
+			RcptToDomain:       "beacon.example",
 			MsgFromLocalpart:   "other",
 			MsgFromDomain:      "remote.example",
 			MsgFromOrgDomain:   "remote.example",

@@ -65,22 +65,22 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/ratelimit"
-	"github.com/mjl-/mox/scram"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/ratelimit"
+	"github.com/qompassai/beacon/scram"
+	"github.com/qompassai/beacon/store"
 )
 
 var (
 	metricIMAPConnection = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_imap_connection_total",
+			Name: "beacon_imap_connection_total",
 			Help: "Incoming IMAP connections.",
 		},
 		[]string{
@@ -89,7 +89,7 @@ var (
 	)
 	metricIMAPCommands = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_imap_command_duration_seconds",
+			Name:    "beacon_imap_command_duration_seconds",
 			Help:    "IMAP command duration and result codes in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20},
 		},
@@ -108,7 +108,7 @@ func init() {
 }
 
 func limitersInit() {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	limiterConnectionrate = &ratelimit.Limiter{
 		WindowLimits: []ratelimit.WindowLimit{
 			{
@@ -170,8 +170,8 @@ type conn struct {
 	line              chan lineErr       // If set, instead of reading from br, a line is read from this channel. For reading a line in IDLE while also waiting for mailbox/account updates.
 	lastLine          string             // For detecting if syntax error is fatal, i.e. if this ends with a literal. Without crlf.
 	bw                *bufio.Writer      // To remote, with TLS added in case of TLS.
-	tr                *moxio.TraceReader // Kept to change trace level when reading/writing cmd/auth/data.
-	tw                *moxio.TraceWriter
+	tr                *beaconio.TraceReader // Kept to change trace level when reading/writing cmd/auth/data.
+	tw                *beaconio.TraceWriter
 	slow              bool        // If set, reads are done with a 1 second sleep, and writes are done 1 byte at a time, to keep spammers busy.
 	lastlog           time.Time   // For printing time since previous log line.
 	tlsConfig         *tls.Config // TLS config to use for handshake.
@@ -310,10 +310,10 @@ type msgseq uint32
 
 // Listen initializes all imap listeners for the configuration, and stores them for Serve to start them.
 func Listen() {
-	names := maps.Keys(mox.Conf.Static.Listeners)
+	names := maps.Keys(beacon.Conf.Static.Listeners)
 	sort.Strings(names)
 	for _, name := range names {
-		listener := mox.Conf.Static.Listeners[name]
+		listener := beacon.Conf.Static.Listeners[name]
 
 		var tlsConfig *tls.Config
 		if listener.TLS != nil {
@@ -347,8 +347,8 @@ func listen1(protocol, listenerName, ip string, port int, tlsConfig *tls.Config,
 			slog.String("addr", addr),
 			slog.String("protocol", protocol))
 	}
-	network := mox.Network(ip)
-	ln, err := mox.Listen(network, addr)
+	network := beacon.Network(ip)
+	ln, err := beacon.Listen(network, addr)
 	if err != nil {
 		log.Fatalx("imap: listen for imap", err, slog.String("protocol", protocol), slog.String("listener", listenerName))
 	}
@@ -365,7 +365,7 @@ func listen1(protocol, listenerName, ip string, port int, tlsConfig *tls.Config,
 			}
 
 			metricIMAPConnection.WithLabelValues(protocol).Inc()
-			go serve(listenerName, mox.Cid(), tlsConfig, conn, xtls, noRequireSTARTTLS)
+			go serve(listenerName, beacon.Cid(), tlsConfig, conn, xtls, noRequireSTARTTLS)
 		}
 	}
 
@@ -447,7 +447,7 @@ func (c *conn) Write(buf []byte) (int, error) {
 		n += nn
 		buf = buf[chunk:]
 		if len(buf) > 0 && badClientDelay > 0 {
-			mox.Sleep(mox.Context, badClientDelay)
+			beacon.Sleep(beacon.Context, badClientDelay)
 		}
 	}
 	return n, nil
@@ -466,12 +466,12 @@ func (c *conn) xtrace(level slog.Level) func() {
 
 // Cache of line buffers for reading commands.
 // QRESYNC recommends 8k max line lengths. ../rfc/7162:2159
-var bufpool = moxio.NewBufpool(8, 16*1024)
+var bufpool = beaconio.NewBufpool(8, 16*1024)
 
 // read line from connection, not going through line channel.
 func (c *conn) readline0() (string, error) {
 	if c.slow && badClientDelay > 0 {
-		mox.Sleep(mox.Context, badClientDelay)
+		beacon.Sleep(beacon.Context, badClientDelay)
 	}
 
 	d := 30 * time.Minute
@@ -482,7 +482,7 @@ func (c *conn) readline0() (string, error) {
 	c.log.Check(err, "setting read deadline")
 
 	line, err := bufpool.Readline(c.log, c.br)
-	if err != nil && errors.Is(err, moxio.ErrLineTooLong) {
+	if err != nil && errors.Is(err, beaconio.ErrLineTooLong) {
 		return "", fmt.Errorf("%s (%w)", err, errProtocol)
 	} else if err != nil {
 		return "", fmt.Errorf("%s (%w)", err, errIO)
@@ -656,8 +656,8 @@ func serve(listenerName string, cid int64, tlsConfig *tls.Config, nc net.Conn, x
 		}
 		return l
 	})
-	c.tr = moxio.NewTraceReader(c.log, "C: ", c.conn)
-	c.tw = moxio.NewTraceWriter(c.log, "S: ", c)
+	c.tr = beaconio.NewTraceReader(c.log, "C: ", c.conn)
+	c.tw = beaconio.NewTraceWriter(c.log, "S: ", c)
 	// todo: tracing should be done on whatever comes out of c.br. the remote connection write a command plus data, and bufio can read it in one read, causing a command parser that sets the tracing level to data to have no effect. we are now typically logging sent messages, when mail clients append to the Sent mailbox.
 	c.br = bufio.NewReader(c.tr)
 	c.bw = bufio.NewWriter(c.tw)
@@ -707,9 +707,9 @@ func serve(listenerName string, cid int64, tlsConfig *tls.Config, nc net.Conn, x
 	}()
 
 	select {
-	case <-mox.Shutdown.Done():
+	case <-beacon.Shutdown.Done():
 		// ../rfc/9051:5381
-		c.writelinef("* BYE mox shutting down")
+		c.writelinef("* BYE beacon shutting down")
 		return
 	default:
 	}
@@ -720,7 +720,7 @@ func serve(listenerName string, cid int64, tlsConfig *tls.Config, nc net.Conn, x
 	}
 
 	// If remote IP/network resulted in too many authentication failures, refuse to serve.
-	if !mox.LimiterFailedAuth.CanAdd(c.remoteIP, time.Now(), 1) {
+	if !beacon.LimiterFailedAuth.CanAdd(c.remoteIP, time.Now(), 1) {
 		metrics.AuthenticationRatelimitedInc("imap")
 		c.log.Debug("refusing connection due to many auth failures", slog.Any("remoteip", c.remoteIP))
 		c.writelinef("* BYE too many auth failures")
@@ -736,10 +736,10 @@ func serve(listenerName string, cid int64, tlsConfig *tls.Config, nc net.Conn, x
 
 	// We register and unregister the original connection, in case it c.conn is
 	// replaced with a TLS connection later on.
-	mox.Connections.Register(nc, "imap", listenerName)
-	defer mox.Connections.Unregister(nc)
+	beacon.Connections.Register(nc, "imap", listenerName)
+	defer beacon.Connections.Unregister(nc)
 
-	c.writelinef("* OK [CAPABILITY %s] mox imap", c.capabilities())
+	c.writelinef("* OK [CAPABILITY %s] beacon imap", c.capabilities())
 
 	for {
 		c.command()
@@ -750,7 +750,7 @@ func serve(listenerName string, cid int64, tlsConfig *tls.Config, nc net.Conn, x
 // isClosed returns whether i/o failed, typically because the connection is closed.
 // For connection errors, we often want to generate fewer logs.
 func isClosed(err error) bool {
-	return errors.Is(err, errIO) || errors.Is(err, errProtocol) || moxio.IsClosed(err)
+	return errors.Is(err, errIO) || errors.Is(err, errProtocol) || beaconio.IsClosed(err)
 }
 
 func (c *conn) command() {
@@ -852,7 +852,7 @@ func (c *conn) command() {
 	c.cmdMetric = "(unrecognized)"
 
 	select {
-	case <-mox.Shutdown.Done():
+	case <-beacon.Shutdown.Done():
 		// ../rfc/9051:5375
 		c.writelinef("* BYE shutting down")
 		panic(errIO)
@@ -1432,7 +1432,7 @@ func (c *conn) cmdID(tag, cmd string, p *parser) {
 
 	// Response syntax: ../rfc/2971:243
 	// We send our name and version. ../rfc/2971:193
-	c.bwritelinef(`* ID ("name" "mox" "version" %s)`, string0(moxvar.Version).pack(c))
+	c.bwritelinef(`* ID ("name" "beacon" "version" %s)`, string0(beaconvar.Version).pack(c))
 	c.ok(tag, cmd)
 }
 
@@ -1460,9 +1460,9 @@ func (c *conn) cmdStarttls(tag, cmd string, p *parser) {
 		conn = &prefixConn{buf, conn}
 	}
 	// We add the cid to facilitate debugging in case of TLS connection failure.
-	c.ok(tag, cmd+" ("+mox.ReceivedID(c.cid)+")")
+	c.ok(tag, cmd+" ("+beacon.ReceivedID(c.cid)+")")
 
-	cidctx := context.WithValue(mox.Context, mlog.CidKey, c.cid)
+	cidctx := context.WithValue(beacon.Context, mlog.CidKey, c.cid)
 	ctx, cancel := context.WithTimeout(cidctx, time.Minute)
 	defer cancel()
 	tlsConn := tls.Server(conn, c.tlsConfig)
@@ -1471,12 +1471,12 @@ func (c *conn) cmdStarttls(tag, cmd string, p *parser) {
 		panic(fmt.Errorf("starttls handshake: %s (%w)", err, errIO))
 	}
 	cancel()
-	tlsversion, ciphersuite := moxio.TLSInfo(tlsConn)
+	tlsversion, ciphersuite := beaconio.TLSInfo(tlsConn)
 	c.log.Debug("tls server handshake done", slog.String("tls", tlsversion), slog.String("ciphersuite", ciphersuite))
 
 	c.conn = tlsConn
-	c.tr = moxio.NewTraceReader(c.log, "C: ", c.conn)
-	c.tw = moxio.NewTraceWriter(c.log, "S: ", c)
+	c.tr = beaconio.NewTraceReader(c.log, "C: ", c.conn)
+	c.tw = beaconio.NewTraceWriter(c.log, "S: ", c)
 	c.br = bufio.NewReader(c.tr)
 	c.bw = bufio.NewWriter(c.tw)
 	c.tls = true
@@ -1493,7 +1493,7 @@ func (c *conn) cmdAuthenticate(tag, cmd string, p *parser) {
 
 	// For many failed auth attempts, slow down verification attempts.
 	if c.authFailed > 3 && authFailDelay > 0 {
-		mox.Sleep(mox.Context, time.Duration(c.authFailed-3)*authFailDelay)
+		beacon.Sleep(beacon.Context, time.Duration(c.authFailed-3)*authFailDelay)
 	}
 	c.authFailed++ // Compensated on success.
 	defer func() {
@@ -1510,9 +1510,9 @@ func (c *conn) cmdAuthenticate(tag, cmd string, p *parser) {
 		metrics.AuthenticationInc("imap", authVariant, authResult)
 		switch authResult {
 		case "ok":
-			mox.LimiterFailedAuth.Reset(c.remoteIP, time.Now())
+			beacon.LimiterFailedAuth.Reset(c.remoteIP, time.Now())
 		default:
-			mox.LimiterFailedAuth.Add(c.remoteIP, time.Now(), 1)
+			beacon.LimiterFailedAuth.Add(c.remoteIP, time.Now(), 1)
 		}
 	}()
 
@@ -1603,7 +1603,7 @@ func (c *conn) cmdAuthenticate(tag, cmd string, p *parser) {
 		p.xempty()
 
 		// ../rfc/2195:82
-		chal := fmt.Sprintf("<%d.%d@%s>", uint64(mox.CryptoRandInt()), time.Now().UnixNano(), mox.Conf.Static.HostnameDomain.ASCII)
+		chal := fmt.Sprintf("<%d.%d@%s>", uint64(beacon.CryptoRandInt()), time.Now().UnixNano(), beacon.Conf.Static.HostnameDomain.ASCII)
 		c.writelinef("+ %s", base64.StdEncoding.EncodeToString([]byte(chal)))
 
 		resp := xreadContinuation()
@@ -1798,7 +1798,7 @@ func (c *conn) cmdLogin(tag, cmd string, p *parser) {
 
 	// For many failed auth attempts, slow down verification attempts.
 	if c.authFailed > 3 && authFailDelay > 0 {
-		mox.Sleep(mox.Context, time.Duration(c.authFailed-3)*authFailDelay)
+		beacon.Sleep(beacon.Context, time.Duration(c.authFailed-3)*authFailDelay)
 	}
 	c.authFailed++ // Compensated on success.
 	defer func() {
@@ -2838,7 +2838,7 @@ wait:
 		case <-c.comm.Pending:
 			c.applyChanges(c.comm.Get(), false)
 			c.xflush()
-		case <-mox.Shutdown.Done():
+		case <-beacon.Shutdown.Done():
 			// ../rfc/9051:5375
 			c.writelinef("* BYE shutting down")
 			panic(errIO)
@@ -3333,13 +3333,13 @@ func (c *conn) cmdxCopy(isUID bool, tag, cmd string, p *parser) {
 					os.MkdirAll(dstdir, 0770)
 					syncDirs[dstdir] = struct{}{}
 				}
-				err := moxio.LinkOrCopy(c.log, dst, src, nil, true)
+				err := beaconio.LinkOrCopy(c.log, dst, src, nil, true)
 				xcheckf(err, "link or copy file %q to %q", src, dst)
 				createdIDs = append(createdIDs, newMsgIDs[i])
 			}
 
 			for dir := range syncDirs {
-				err := moxio.SyncDir(c.log, dir)
+				err := beaconio.SyncDir(c.log, dir)
 				xcheckf(err, "sync directory")
 			}
 

@@ -19,53 +19,53 @@ import (
 	"github.com/mjl-/adns"
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dsn"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dsn"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 var (
 	metricDestinations = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_destinations_total",
-			Help: "Total destination (e.g. MX) lookups for delivery attempts, including those in mox_smtpclient_destinations_authentic_total.",
+			Name: "beacon_queue_destinations_total",
+			Help: "Total destination (e.g. MX) lookups for delivery attempts, including those in beacon_smtpclient_destinations_authentic_total.",
 		},
 	)
 	metricDestinationsAuthentic = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_destinations_authentic_total",
+			Name: "beacon_queue_destinations_authentic_total",
 			Help: "Destination (e.g. MX) lookups for delivery attempts authenticated with DNSSEC so they are candidates for DANE verification.",
 		},
 	)
 	metricDestinationDANERequired = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_destination_dane_required_total",
+			Name: "beacon_queue_destination_dane_required_total",
 			Help: "Total number of connections to hosts with valid TLSA records making DANE required.",
 		},
 	)
 	metricDestinationDANESTARTTLSUnverified = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_destination_dane_starttlsunverified_total",
+			Name: "beacon_queue_destination_dane_starttlsunverified_total",
 			Help: "Total number of connections with required DANE where all TLSA records were unusable.",
 		},
 	)
 	metricDestinationDANEGatherTLSAErrors = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_destination_dane_gathertlsa_errors_total",
+			Name: "beacon_queue_destination_dane_gathertlsa_errors_total",
 			Help: "Total number of connections where looking up TLSA records resulted in an error.",
 		},
 	)
 	// todo: recognize when "tls-required-no" message header caused a non-verifying certificate to be overridden. requires doing our own certificate validation after having set tls.Config.InsecureSkipVerify due to tls-required-no.
 	metricTLSRequiredNoIgnored = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_queue_tlsrequiredno_ignored_total",
+			Name: "beacon_queue_tlsrequiredno_ignored_total",
 			Help: "Delivery attempts with TLS policy findings ignored due to message with TLS-Required: No header. Does not cover case where TLS certificate cannot be PKIX-verified.",
 		},
 		[]string{
@@ -74,7 +74,7 @@ var (
 	)
 	metricRequireTLSUnsupported = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_queue_requiretls_unsupported_total",
+			Name: "beacon_queue_requiretls_unsupported_total",
 			Help: "Delivery attempts that failed due to message with REQUIRETLS.",
 		},
 		[]string{
@@ -83,7 +83,7 @@ var (
 	)
 	metricPlaintextFallback = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_plaintext_fallback_total",
+			Name: "beacon_queue_plaintext_fallback_total",
 			Help: "Delivery attempts with fallback to plain text delivery.",
 		},
 	)
@@ -153,7 +153,7 @@ func deliverDirect(qlog mlog.Log, resolver dns.Resolver, dialer smtpclient.Diale
 	// possibly a chain. If there are no MX records, it can be an IP or the host
 	// directly.
 	origNextHop := m.RecipientDomain.Domain
-	ctx := mox.Shutdown
+	ctx := beacon.Shutdown
 	haveMX, origNextHopAuthentic, expandedNextHopAuthentic, expandedNextHop, hosts, permanent, err := smtpclient.GatherDestinations(ctx, qlog.Logger, resolver, m.RecipientDomain)
 	if err != nil {
 		// If this is a DNSSEC authentication error, we'll collect it for TLS reporting.
@@ -241,7 +241,7 @@ func deliverDirect(qlog mlog.Log, resolver dns.Resolver, dialer smtpclient.Diale
 		}
 
 		qlog.Info("delivering to remote", slog.Any("remote", h))
-		nqlog := qlog.WithCid(mox.Cid())
+		nqlog := qlog.WithCid(beacon.Cid())
 		var remoteIP net.IP
 
 		enforceMTASTS := policy != nil && policy.Mode == mtasts.ModeEnforce
@@ -395,7 +395,7 @@ func deliverHost(log mlog.Log, resolver dns.Resolver, dialer smtpclient.Dialer, 
 		log.Check(err, "closing message after delivery attempt")
 	}()
 
-	ctx, cancel := context.WithTimeout(mox.Shutdown, 30*time.Second)
+	ctx, cancel := context.WithTimeout(beacon.Shutdown, 30*time.Second)
 	defer cancel()
 
 	// We must lookup the IPs for the host name before checking DANE TLSA records. And
@@ -527,7 +527,7 @@ func deliverHost(log mlog.Log, resolver dns.Resolver, dialer smtpclient.Dialer, 
 		if m.DialedIPs == nil {
 			m.DialedIPs = map[string][]net.IP{}
 		}
-		conn, remoteIP, err = smtpclient.Dial(ctx, log.Logger, dialer, host, ips, 25, m.DialedIPs, mox.Conf.Static.SpecifiedSMTPListenIPs)
+		conn, remoteIP, err = smtpclient.Dial(ctx, log.Logger, dialer, host, ips, 25, m.DialedIPs, beacon.Conf.Static.SpecifiedSMTPListenIPs)
 	}
 	cancel()
 
@@ -557,9 +557,9 @@ func deliverHost(log mlog.Log, resolver dns.Resolver, dialer smtpclient.Dialer, 
 
 	// todo future: get closer to timeouts specified in rfc? ../rfc/5321:3610
 	log = log.With(slog.Any("remoteip", remoteIP))
-	ctx, cancel = context.WithTimeout(mox.Shutdown, 30*time.Minute)
+	ctx, cancel = context.WithTimeout(beacon.Shutdown, 30*time.Minute)
 	defer cancel()
-	mox.Connections.Register(conn, "smtpclient", "queue")
+	beacon.Connections.Register(conn, "smtpclient", "queue")
 
 	// Initialize SMTP session, sending EHLO/HELO and STARTTLS with specified tls mode.
 	var firstHost dns.Domain
@@ -572,7 +572,7 @@ func deliverHost(log mlog.Log, resolver dns.Resolver, dialer smtpclient.Dialer, 
 	var verifiedRecord adns.TLSA
 	opts := smtpclient.Opts{
 		IgnoreTLSVerifyErrors: tlsRequiredNo,
-		RootCAs:               mox.Conf.Static.TLS.CertPool,
+		RootCAs:               beacon.Conf.Static.TLS.CertPool,
 		DANERecords:           daneRecords,
 		DANEMoreHostnames:     moreHosts,
 		DANEVerifiedRecord:    &verifiedRecord,
@@ -586,7 +586,7 @@ func deliverHost(log mlog.Log, resolver dns.Resolver, dialer smtpclient.Dialer, 
 		} else {
 			sc.Close()
 		}
-		mox.Connections.Unregister(conn)
+		beacon.Connections.Unregister(conn)
 	}()
 	if err == nil && m.SenderAccount != "" {
 		// Remember the STARTTLS and REQUIRETLS support for this recipient domain.

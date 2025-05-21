@@ -7,7 +7,7 @@ import (
 
 	"github.com/mjl-/sconf"
 
-	"github.com/mjl-/mox/config"
+	"github.com/qompassai/beacon/config"
 )
 
 func cmdExample(c *cmd) {
@@ -45,9 +45,9 @@ var examples = []struct {
 		func() string {
 			const webhandlers = `# Snippet of domains.conf to configure WebDomainRedirects and WebHandlers.
 
-# Redirect all requests for mox.example to https://www.mox.example.
+# Redirect all requests for beacon.example to https://www.beacon.example.
 WebDomainRedirects:
-	mox.example: www.mox.example
+	beacon.example: www.beacon.example
 
 # Each request is matched against these handlers until one matches and serves it.
 WebHandlers:
@@ -58,19 +58,19 @@ WebHandlers:
 		# request (and not cause a redirect loop) and the webserver to serve the request
 		# with a later handler.
 		LogName: redirhttps
-		Domain: www.mox.example
+		Domain: www.beacon.example
 		PathRegexp: ^/
 		# Could leave DontRedirectPlainHTTP at false if it wasn't for this being an
 		# example for doing this redirect.
 		DontRedirectPlainHTTP: true
 		WebRedirect:
-			BaseURL: https://www.mox.example
+			BaseURL: https://www.beacon.example
 	-
 		# The name of the handler, used in logging and metrics.
 		LogName: staticmjl
 		# With ACME configured, each configured domain will automatically get a TLS
 		# certificate on first request.
-		Domain: www.mox.example
+		Domain: www.beacon.example
 		PathRegexp: ^/who/mjl/
 		WebStatic:
 			StripPrefix: /who/mjl
@@ -83,7 +83,7 @@ WebHandlers:
 				X-Mox: hi
 	-
 		LogName: redir
-		Domain: www.mox.example
+		Domain: www.beacon.example
 		PathRegexp: ^/redir/a/b/c
 		# Don't redirect from plain HTTP to HTTPS.
 		DontRedirectPlainHTTP: true
@@ -91,12 +91,12 @@ WebHandlers:
 			# Just change the domain and add query string set fragment. No change to scheme.
 			# Path will start with /redir/a/b/c (and whathever came after) because no
 			# OrigPathRegexp+ReplacePath is set.
-			BaseURL: //moxest.example?q=1#frag
+			BaseURL: //beaconest.example?q=1#frag
 			# Default redirection is 308 - Permanent Redirect.
 			StatusCode: 307
 	-
 		LogName: oldnew
-		Domain: www.mox.example
+		Domain: www.beacon.example
 		PathRegexp: ^/old/
 		WebRedirect:
 			# Replace path, leaving rest of URL intact.
@@ -104,7 +104,7 @@ WebHandlers:
 			ReplacePath: /new/$1
 	-
 		LogName: app
-		Domain: www.mox.example
+		Domain: www.beacon.example
 		PathRegexp: ^/app/
 		WebForward:
 			# Strip the path matched by PathRegexp before forwarding the request. So original
@@ -134,7 +134,7 @@ WebHandlers:
 	{
 		"transport",
 		func() string {
-			const moxconf = `# Snippet for mox.conf, defining a transport called Example that connects on the
+			const beaconconf = `# Snippet for beacon.conf, defining a transport called Example that connects on the
 # SMTP submission with TLS port 465 ("submissions), authenticating with
 # SCRAM-SHA-256-PLUS (other providers may not support SCRAM-SHA-256-PLUS, but they
 # typically do support the older CRAM-MD5).:
@@ -187,11 +187,11 @@ Routes:
 			var dynamic struct {
 				Routes []config.Route
 			}
-			err := sconf.Parse(strings.NewReader(moxconf), &static)
-			xcheckf(err, "parsing moxconf example")
+			err := sconf.Parse(strings.NewReader(beaconconf), &static)
+			xcheckf(err, "parsing beaconconf example")
 			err = sconf.Parse(strings.NewReader(domainsconf), &dynamic)
 			xcheckf(err, "parsing domainsconf example")
-			return moxconf + "\n\n" + domainsconf
+			return beaconconf + "\n\n" + domainsconf
 		},
 	},
 }

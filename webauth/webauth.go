@@ -4,7 +4,7 @@ the web interfaces (admin, account, mail).
 
 Authentication of web requests is through a session token in a cookie. For API
 requests, and other requests where the frontend can send custom headers, a
-header ("x-mox-csrf") with a CSRF token is also required and verified to belong
+header ("x-beacon-csrf") with a CSRF token is also required and verified to belong
 to the session token. For other form POSTS, a field "csrf" is required. Session
 tokens and CSRF tokens are different randomly generated values. Session cookies
 are "httponly", samesite "strict", and with the path set to the root of the
@@ -47,10 +47,10 @@ import (
 
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 // Delay before responding in case of bad authentication attempt.
@@ -114,7 +114,7 @@ func Check(ctx context.Context, log mlog.Log, sessionAuth SessionAuth, kind stri
 	if requireCSRF && postFormCSRF {
 		csrfValue = r.PostFormValue("csrf")
 	} else {
-		csrfValue = r.Header.Get("x-mox-csrf")
+		csrfValue = r.Header.Get("x-beacon-csrf")
 	}
 	csrfToken := store.CSRFToken(csrfValue)
 	if requireCSRF && csrfToken == "" {
@@ -135,7 +135,7 @@ func Check(ctx context.Context, log mlog.Log, sessionAuth SessionAuth, kind stri
 		return "", "", "", false
 	}
 	start := time.Now()
-	if !mox.LimiterFailedAuth.Add(ip, start, 1) {
+	if !beacon.LimiterFailedAuth.Add(ip, start, 1) {
 		metrics.AuthenticationRatelimitedInc(kind)
 		http.Error(w, "429 - too many auth attempts", http.StatusTooManyRequests)
 		return
@@ -165,7 +165,7 @@ func Check(ctx context.Context, log mlog.Log, sessionAuth SessionAuth, kind stri
 		return "", "", "", false
 	}
 
-	mox.LimiterFailedAuth.Reset(ip, start)
+	beacon.LimiterFailedAuth.Reset(ip, start)
 	authResult = "ok"
 
 	// Add to HTTP logging that this is an authenticated request.
@@ -229,7 +229,7 @@ func Login(ctx context.Context, log mlog.Log, sessionAuth SessionAuth, kind, coo
 		return "", fmt.Errorf("cannot find ip for rate limit check (missing x-forwarded-for header?)")
 	}
 	start := time.Now()
-	if !mox.LimiterFailedAuth.Add(ip, start, 1) {
+	if !beacon.LimiterFailedAuth.Add(ip, start, 1) {
 		metrics.AuthenticationRatelimitedInc(kind)
 		return "", &sherpa.Error{Code: "user:error", Message: "too many authentication attempts"}
 	}
@@ -248,7 +248,7 @@ func Login(ctx context.Context, log mlog.Log, sessionAuth SessionAuth, kind, coo
 		return "", &sherpa.Error{Code: "user:loginFailed", Message: "invalid credentials"}
 	}
 	authResult = "ok"
-	mox.LimiterFailedAuth.Reset(ip, start)
+	beacon.LimiterFailedAuth.Reset(ip, start)
 
 	sessionToken, csrfToken, err := sessionAuth.add(ctx, log, accountName, username)
 	if err != nil {

@@ -15,16 +15,16 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 var (
 	metricSession = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_tlsrptdb_session_total",
+			Name: "beacon_tlsrptdb_session_total",
 			Help: "Number of sessions, both success and known result types.",
 		},
 		[]string{"type"}, // Known result types, and "success"
@@ -62,7 +62,7 @@ func reportDB(ctx context.Context) (rdb *bstore.DB, rerr error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if ReportDB == nil {
-		p := mox.DataDirPath("tlsrpt.db")
+		p := beacon.DataDirPath("tlsrpt.db")
 		os.MkdirAll(filepath.Dir(p), 0770)
 		db, err := bstore.Open(ctx, p, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, ReportDBTypes...)
 		if err != nil {
@@ -106,10 +106,10 @@ func AddReport(ctx context.Context, log mlog.Log, verifiedFromDomain dns.Domain,
 			log.Errorx("invalid domain in tls report", err, slog.Any("domain", pp.Domain), slog.String("mailfrom", mailFrom))
 			continue
 		}
-		if hostReport && d != mox.Conf.Static.HostnameDomain {
+		if hostReport && d != beacon.Conf.Static.HostnameDomain {
 			log.Info("unknown mail host policy domain in tls report, not storing", slog.Any("domain", d), slog.String("mailfrom", mailFrom))
 			return fmt.Errorf("unknown mail host policy domain")
-		} else if _, ok := mox.Conf.Domain(d); !hostReport && !ok {
+		} else if _, ok := beacon.Conf.Domain(d); !hostReport && !ok {
 			log.Info("unknown recipient policy domain in tls report, not storing", slog.Any("domain", d), slog.String("mailfrom", mailFrom))
 			return fmt.Errorf("unknown recipient policy domain")
 		}

@@ -14,9 +14,9 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/store"
 )
 
 type eventWriter struct {

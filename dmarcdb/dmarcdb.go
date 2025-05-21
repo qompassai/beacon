@@ -11,7 +11,7 @@
 package dmarcdb
 
 import (
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 // Init opens the databases.
@@ -19,10 +19,10 @@ import (
 // The incoming reports and evaluations for outgoing reports are in separate
 // databases for simpler file-based handling of the databases.
 func Init() error {
-	if _, err := reportsDB(mox.Shutdown); err != nil {
+	if _, err := reportsDB(beacon.Shutdown); err != nil {
 		return err
 	}
-	if _, err := evalDB(mox.Shutdown); err != nil {
+	if _, err := evalDB(beacon.Shutdown); err != nil {
 		return err
 	}
 	return nil

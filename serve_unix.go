@@ -23,15 +23,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/updates"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/updates"
 )
 
 func monitorDNSBL(log mlog.Log) {
@@ -45,7 +45,7 @@ func monitorDNSBL(log mlog.Log) {
 		}
 	}()
 
-	l, ok := mox.Conf.Static.Listeners["public"]
+	l, ok := beacon.Conf.Static.Listeners["public"]
 	if !ok {
 		log.Info("no listener named public, not monitoring our ips at dnsbls")
 		return
@@ -77,7 +77,7 @@ func monitorDNSBL(log mlog.Log) {
 		time.Sleep(sleep)
 		sleep = 3 * time.Hour
 
-		ips, err := mox.IPs(mox.Context, false)
+		ips, err := beacon.IPs(beacon.Context, false)
 		if err != nil {
 			log.Errorx("listing ips for dnsbl monitor", err)
 			continue
@@ -88,7 +88,7 @@ func monitorDNSBL(log mlog.Log) {
 			}
 
 			for _, zone := range zones {
-				status, expl, err := dnsbl.Lookup(mox.Context, log.Logger, resolver, zone, ip)
+				status, expl, err := dnsbl.Lookup(beacon.Context, log.Logger, resolver, zone, ip)
 				if err != nil {
 					log.Errorx("dnsbl monitor lookup", err,
 						slog.Any("ip", ip),
@@ -105,7 +105,7 @@ func monitorDNSBL(log mlog.Log) {
 				if _, ok := metrics[k]; !ok {
 					metrics[k] = promauto.NewGaugeFunc(
 						prometheus.GaugeOpts{
-							Name: "mox_dnsbl_ips_success",
+							Name: "beacon_dnsbl_ips_success",
 							Help: "DNSBL lookups to configured DNSBLs of our IPs.",
 							ConstLabels: prometheus.Labels{
 								"zone": zone.LogString(),
@@ -130,7 +130,7 @@ func monitorDNSBL(log mlog.Log) {
 
 // also see localserve.go, code is similar or even shared.
 func cmdServe(c *cmd) {
-	c.help = `Start mox, serving SMTP/IMAP/HTTPS.
+	c.help = `Start beacon, serving SMTP/IMAP/HTTPS.
 
 Incoming email is accepted over SMTP. Email can be retrieved by users using
 IMAP. HTTP listeners are started for the admin/account web interfaces, and for
@@ -146,59 +146,59 @@ Only implemented on unix systems, not Windows.
 
 	// Set debug logging until config is fully loaded.
 	mlog.Logfmt = true
-	mox.Conf.Log[""] = mlog.LevelDebug
-	mlog.SetConfig(mox.Conf.Log)
+	beacon.Conf.Log[""] = mlog.LevelDebug
+	mlog.SetConfig(beacon.Conf.Log)
 
 	checkACMEHosts := os.Getuid() != 0
 
 	log := c.log
 
 	if os.Getuid() == 0 {
-		mox.MustLoadConfig(true, checkACMEHosts)
+		beacon.MustLoadConfig(true, checkACMEHosts)
 
 		// No need to potentially start and keep multiple processes. As root, we just need
 		// to start the child process.
 		runtime.GOMAXPROCS(1)
 
-		moxconf, err := filepath.Abs(mox.ConfigStaticPath)
-		log.Check(err, "finding absolute mox.conf path")
-		domainsconf, err := filepath.Abs(mox.ConfigDynamicPath)
+		beaconconf, err := filepath.Abs(beacon.ConfigStaticPath)
+		log.Check(err, "finding absolute beacon.conf path")
+		domainsconf, err := filepath.Abs(beacon.ConfigDynamicPath)
 		log.Check(err, "finding absolute domains.conf path")
 
 		log.Print("starting as root, initializing network listeners",
-			slog.String("version", moxvar.Version),
+			slog.String("version", beaconvar.Version),
 			slog.Any("pid", os.Getpid()),
-			slog.String("moxconf", moxconf),
+			slog.String("beaconconf", beaconconf),
 			slog.String("domainsconf", domainsconf))
-		if os.Getenv("MOX_SOCKETS") != "" {
-			log.Fatal("refusing to start as root with $MOX_SOCKETS set")
+		if os.Getenv("BEACON_SOCKETS") != "" {
+			log.Fatal("refusing to start as root with $BEACON_SOCKETS set")
 		}
-		if os.Getenv("MOX_FILES") != "" {
-			log.Fatal("refusing to start as root with $MOX_FILES set")
+		if os.Getenv("BEACON_FILES") != "" {
+			log.Fatal("refusing to start as root with $BEACON_FILES set")
 		}
 
-		if !mox.Conf.Static.NoFixPermissions {
+		if !beacon.Conf.Static.NoFixPermissions {
 			// Fix permissions now that we have privilege to do so. Useful for update of v0.0.1
-			// that was running directly as mox-user.
+			// that was running directly as beacon-user.
 			workdir, err := os.Getwd()
 			if err != nil {
 				log.Printx("get working dir, continuing without potentially fixing up permissions", err)
 			} else {
-				configdir := filepath.Dir(mox.ConfigStaticPath)
-				datadir := mox.DataDirPath(".")
-				err := fixperms(log, workdir, configdir, datadir, mox.Conf.Static.UID, mox.Conf.Static.GID)
+				configdir := filepath.Dir(beacon.ConfigStaticPath)
+				datadir := beacon.DataDirPath(".")
+				err := fixperms(log, workdir, configdir, datadir, beacon.Conf.Static.UID, beacon.Conf.Static.GID)
 				if err != nil {
 					log.Fatalx("fixing permissions", err)
 				}
 			}
 		}
 	} else {
-		mox.RestorePassedFiles()
-		mox.MustLoadConfig(true, checkACMEHosts)
+		beacon.RestorePassedFiles()
+		beacon.MustLoadConfig(true, checkACMEHosts)
 		log.Print("starting as unprivileged user",
-			slog.String("user", mox.Conf.Static.User),
-			slog.Any("uid", mox.Conf.Static.UID),
-			slog.Any("gid", mox.Conf.Static.GID),
+			slog.String("user", beacon.Conf.Static.User),
+			slog.Any("uid", beacon.Conf.Static.UID),
+			slog.Any("gid", beacon.Conf.Static.GID),
 			slog.Any("pid", os.Getpid()))
 	}
 
@@ -206,7 +206,7 @@ Only implemented on unix systems, not Windows.
 
 	// Initialize key and random buffer for creating opaque SMTP
 	// transaction IDs based on "cid"s.
-	recvidpath := mox.DataDirPath("receivedid.key")
+	recvidpath := beacon.DataDirPath("receivedid.key")
 	recvidbuf, err := os.ReadFile(recvidpath)
 	if err != nil || len(recvidbuf) != 16+8 {
 		recvidbuf = make([]byte, 16+8)
@@ -216,19 +216,19 @@ Only implemented on unix systems, not Windows.
 		if err := os.WriteFile(recvidpath, recvidbuf, 0660); err != nil {
 			log.Fatalx("writing recvidpath", err, slog.String("path", recvidpath))
 		}
-		err := os.Chown(recvidpath, int(mox.Conf.Static.UID), 0)
+		err := os.Chown(recvidpath, int(beacon.Conf.Static.UID), 0)
 		log.Check(err, "chown receveidid.key",
 			slog.String("path", recvidpath),
-			slog.Any("uid", mox.Conf.Static.UID),
+			slog.Any("uid", beacon.Conf.Static.UID),
 			slog.Any("gid", 0))
 		err = os.Chmod(recvidpath, 0640)
 		log.Check(err, "chmod receveidid.key to 0640", slog.String("path", recvidpath))
 	}
-	if err := mox.ReceivedIDInit(recvidbuf[:16], recvidbuf[16:]); err != nil {
+	if err := beacon.ReceivedIDInit(recvidbuf[:16], recvidbuf[16:]); err != nil {
 		log.Fatalx("init receivedid", err)
 	}
 
-	// Start mox. If running as root, this will bind/listen on network sockets, and
+	// Start beacon. If running as root, this will bind/listen on network sockets, and
 	// fork and exec itself as unprivileged user, then waits for the child to stop and
 	// exit. When running as root, this function never returns. But the new
 	// unprivileged user will get here again, with network sockets prepared.
@@ -241,15 +241,15 @@ Only implemented on unix systems, not Windows.
 	// taken.
 	const mtastsdbRefresher = true
 	const skipForkExec = false
-	if err := start(mtastsdbRefresher, !mox.Conf.Static.NoOutgoingDMARCReports, !mox.Conf.Static.NoOutgoingTLSReports, skipForkExec); err != nil {
+	if err := start(mtastsdbRefresher, !beacon.Conf.Static.NoOutgoingDMARCReports, !beacon.Conf.Static.NoOutgoingTLSReports, skipForkExec); err != nil {
 		log.Fatalx("start", err)
 	}
 	log.Print("ready to serve")
 
-	if mox.Conf.Static.CheckUpdates {
+	if beacon.Conf.Static.CheckUpdates {
 		checkUpdates := func() time.Duration {
 			next := 24 * time.Hour
-			current, lastknown, mtime, err := mox.LastKnown()
+			current, lastknown, mtime, err := beacon.LastKnown()
 			if err != nil {
 				log.Infox("determining own version before checking for updates, trying again in 24h", err)
 				return next
@@ -264,14 +264,14 @@ Only implemented on unix systems, not Windows.
 				next = 0
 			}
 			now := time.Now()
-			if err := os.Chtimes(mox.DataDirPath("lastknownversion"), now, now); err != nil {
+			if err := os.Chtimes(beacon.DataDirPath("lastknownversion"), now, now); err != nil {
 				if !os.IsNotExist(err) {
 					log.Infox("setting mtime on lastknownversion file, continuing", err)
 				}
 			}
 
 			log.Debug("checking for updates", slog.Any("lastknown", lastknown))
-			updatesctx, updatescancel := context.WithTimeout(mox.Context, time.Minute)
+			updatesctx, updatescancel := context.WithTimeout(beacon.Context, time.Minute)
 			latest, _, changelog, err := updates.Check(updatesctx, log.Logger, dns.StrictResolver{Log: log.Logger}, dns.Domain{ASCII: changelogDomain}, lastknown, changelogURL, changelogPubKey)
 			updatescancel()
 			if err != nil {
@@ -293,7 +293,7 @@ Only implemented on unix systems, not Windows.
 			}
 			cl += "----"
 
-			a, err := store.OpenAccount(log, mox.Conf.Static.Postmaster.Account)
+			a, err := store.OpenAccount(log, beacon.Conf.Static.Postmaster.Account)
 			if err != nil {
 				log.Infox("open account for postmaster changelog delivery", err)
 				return next
@@ -313,13 +313,13 @@ Only implemented on unix systems, not Windows.
 				Received: time.Now(),
 				Flags:    store.Flags{Flagged: true},
 			}
-			n, err := fmt.Fprintf(f, "Date: %s\r\nSubject: mox %s available\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8-bit\r\n\r\nHi!\r\n\r\nVersion %s of mox is available, this install is at %s.\r\n\r\nChanges:\r\n\r\n%s\r\n\r\nRemember to make a backup with \"mox backup\" before upgrading.\r\nPlease report any issues at https://github.com/mjl-/mox, thanks!\r\n\r\nCheers,\r\nmox\r\n", time.Now().Format(message.RFC5322Z), latest, latest, current, strings.ReplaceAll(cl, "\n", "\r\n"))
+			n, err := fmt.Fprintf(f, "Date: %s\r\nSubject: beacon %s available\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8-bit\r\n\r\nHi!\r\n\r\nVersion %s of beacon is available, this install is at %s.\r\n\r\nChanges:\r\n\r\n%s\r\n\r\nRemember to make a backup with \"beacon backup\" before upgrading.\r\nPlease report any issues at https://github.com/qompassai/beacon, thanks!\r\n\r\nCheers,\r\nbeacon\r\n", time.Now().Format(message.RFC5322Z), latest, latest, current, strings.ReplaceAll(cl, "\n", "\r\n"))
 			if err != nil {
 				log.Infox("writing temporary message file for changelog delivery", err)
 				return next
 			}
 			m.Size = int64(n)
-			if err := a.DeliverMailbox(log, mox.Conf.Static.Postmaster.Mailbox, m, f); err != nil {
+			if err := a.DeliverMailbox(log, beacon.Conf.Static.Postmaster.Mailbox, m, f); err != nil {
 				log.Errorx("changelog delivery", err)
 				return next
 			}
@@ -327,7 +327,7 @@ Only implemented on unix systems, not Windows.
 				slog.Any("current", current),
 				slog.Any("lastknown", lastknown),
 				slog.Any("latest", latest))
-			if err := mox.StoreLastKnown(latest); err != nil {
+			if err := beacon.StoreLastKnown(latest); err != nil {
 				// This will be awkward, we'll keep notifying the postmaster once every 24h...
 				log.Infox("updating last known version", err)
 			}
@@ -344,7 +344,7 @@ Only implemented on unix systems, not Windows.
 
 	go monitorDNSBL(log)
 
-	ctlpath := mox.DataDirPath("ctl")
+	ctlpath := beacon.DataDirPath("ctl")
 	_ = os.Remove(ctlpath)
 	ctl, err := net.Listen("unix", ctlpath)
 	if err != nil {
@@ -357,14 +357,14 @@ Only implemented on unix systems, not Windows.
 				log.Printx("accept for ctl", err)
 				continue
 			}
-			cid := mox.Cid()
-			ctx := context.WithValue(mox.Context, mlog.CidKey, cid)
+			cid := beacon.Cid()
+			ctx := context.WithValue(beacon.Context, mlog.CidKey, cid)
 			go servectl(ctx, log.WithCid(cid), conn, func() { shutdown(log) })
 		}
 	}()
 
 	// Remove old temporary files that somehow haven't been cleaned up.
-	tmpdir := mox.DataDirPath("tmp")
+	tmpdir := beacon.DataDirPath("tmp")
 	os.MkdirAll(tmpdir, 0770)
 	tmps, err := os.ReadDir(tmpdir)
 	if err != nil {
@@ -398,12 +398,12 @@ Only implemented on unix systems, not Windows.
 	}
 }
 
-// Set correct permissions for mox working directory, binary, config and data and service file.
+// Set correct permissions for beacon working directory, binary, config and data and service file.
 //
 // We require being able to stat the basic non-optional paths. Then we'll try to
 // fix up permissions. If an error occurs when fixing permissions, we log and
 // continue (could not be an actual problem).
-func fixperms(log mlog.Log, workdir, configdir, datadir string, moxuid, moxgid uint32) (rerr error) {
+func fixperms(log mlog.Log, workdir, configdir, datadir string, beaconuid, beacongid uint32) (rerr error) {
 	type fserr struct{ Err error }
 	defer func() {
 		x := recover()
@@ -473,23 +473,23 @@ func fixperms(log mlog.Log, workdir, configdir, datadir string, moxuid, moxgid u
 
 	// We ensure these permissions:
 	//
-	//	$workdir root:mox 0751
-	//	$configdir mox:root 0750 + setgid, and recursively (but files 0640)
-	//	$datadir mox:root 0750 + setgid, and recursively (but files 0640)
-	//	$workdir/mox (binary, optional) root:mox 0750
-	//	$workdir/mox.service (systemd service file, optional) root:root 0644
+	//	$workdir root:beacon 0751
+	//	$configdir beacon:root 0750 + setgid, and recursively (but files 0640)
+	//	$datadir beacon:root 0750 + setgid, and recursively (but files 0640)
+	//	$workdir/beacon (binary, optional) root:beacon 0750
+	//	$workdir/beacon.service (systemd service file, optional) root:root 0644
 
 	const root = 0
-	ensure(workdir, root, moxgid, 0751)
-	fixconfig := ensure(configdir, moxuid, 0, fs.ModeSetgid|0750)
-	fixdata := ensure(datadir, moxuid, 0, fs.ModeSetgid|0750)
+	ensure(workdir, root, beacongid, 0751)
+	fixconfig := ensure(configdir, beaconuid, 0, fs.ModeSetgid|0750)
+	fixdata := ensure(datadir, beaconuid, 0, fs.ModeSetgid|0750)
 
 	// Binary and systemd service file do not exist (there) when running under docker.
-	binary := filepath.Join(workdir, "mox")
+	binary := filepath.Join(workdir, "beacon")
 	if xexists(binary) {
-		ensure(binary, root, moxgid, 0750)
+		ensure(binary, root, beacongid, 0750)
 	}
-	svc := filepath.Join(workdir, "mox.service")
+	svc := filepath.Join(workdir, "beacon.service")
 	if xexists(svc) {
 		ensure(svc, root, root, 0644)
 	}
@@ -535,13 +535,13 @@ func fixperms(log mlog.Log, workdir, configdir, datadir string, moxuid, moxgid u
 				log.Printx("syscall stat during walk, continuing", err, slog.String("path", path))
 				return nil
 			}
-			if st.Uid != moxuid || st.Gid != root {
-				err := os.Chown(path, int(moxuid), root)
+			if st.Uid != beaconuid || st.Gid != root {
+				err := os.Chown(path, int(beaconuid), root)
 				log.Printx("walk chown, fixing uid/gid", err,
 					slog.String("path", path),
 					slog.Any("olduid", st.Uid),
 					slog.Any("oldgid", st.Gid),
-					slog.Any("newuid", moxuid),
+					slog.Any("newuid", beaconuid),
 					slog.Any("newgid", root))
 			}
 			omode := fi.Mode() & (fs.ModeSetgid | 0777)

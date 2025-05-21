@@ -3,7 +3,7 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/store"
 )
 
 func TestNumSetContains(t *testing.T) {

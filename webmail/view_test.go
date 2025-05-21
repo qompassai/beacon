@@ -18,17 +18,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 func TestView(t *testing.T) {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	os.RemoveAll("../testdata/webmail/data")
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/webmail/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/webmail/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	defer store.Switchboard()()
 
 	log := mlog.New("webmail", nil)
@@ -44,7 +44,7 @@ func TestView(t *testing.T) {
 	api := Webmail{maxMessageSize: 1024 * 1024, cookiePath: "/"}
 
 	respRec := httptest.NewRecorder()
-	reqInfo := requestInfo{"mjl@mox.example", "mjl", "", respRec, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
+	reqInfo := requestInfo{"mjl@beacon.example", "mjl", "", respRec, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
 	ctx := context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	// Prepare loginToken.
@@ -52,7 +52,7 @@ func TestView(t *testing.T) {
 	loginCookie.Value = api.LoginPrep(ctx)
 	reqInfo.Request.Header = http.Header{"Cookie": []string{loginCookie.String()}}
 
-	api.Login(ctx, loginCookie.Value, "mjl@mox.example", "test1234")
+	api.Login(ctx, loginCookie.Value, "mjl@beacon.example", "test1234")
 	var sessionCookie *http.Cookie
 	for _, c := range respRec.Result().Cookies() {
 		if c.Name == "webmailsession" {
@@ -69,7 +69,7 @@ func TestView(t *testing.T) {
 	}
 	sessionToken := store.SessionToken(sct[0])
 
-	reqInfo = requestInfo{"mjl@mox.example", "mjl", sessionToken, respRec, &http.Request{}}
+	reqInfo = requestInfo{"mjl@beacon.example", "mjl", sessionToken, respRec, &http.Request{}}
 	ctx = context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	api.MailboxCreate(ctx, "Lists/Go/Nuts")
@@ -327,12 +327,12 @@ func TestView(t *testing.T) {
 	testFilter(false, Filter{MailboxID: inbox.ID, Newest: &inboxMinimal.m.Received}, znf, []int64{inboxMinimal.ID})
 	testFilter(false, Filter{MailboxID: inbox.ID, SizeMin: inboxFlags.m.Size}, znf, []int64{inboxFlags.ID})
 	testFilter(false, Filter{MailboxID: inbox.ID, SizeMax: inboxMinimal.m.Size}, znf, []int64{inboxMinimal.ID})
-	testFilter(false, Filter{From: []string{"mjl+altrel@mox.example"}}, znf, []int64{inboxFlags.ID})
-	testFilter(false, Filter{MailboxID: inbox.ID}, NotFilter{From: []string{"mjl+altrel@mox.example"}}, []int64{inboxAltReply.ID, inboxMinimal.ID})
-	testFilter(false, Filter{To: []string{"mox+altrel@other.example"}}, znf, []int64{inboxFlags.ID})
-	testFilter(false, Filter{MailboxID: inbox.ID}, NotFilter{To: []string{"mox+altrel@other.example"}}, []int64{inboxAltReply.ID, inboxMinimal.ID})
-	testFilter(false, Filter{From: []string{"mjl+altrel@mox.example", "bogus"}}, znf, []int64{})
-	testFilter(false, Filter{To: []string{"mox+altrel@other.example", "bogus"}}, znf, []int64{})
+	testFilter(false, Filter{From: []string{"mjl+altrel@beacon.example"}}, znf, []int64{inboxFlags.ID})
+	testFilter(false, Filter{MailboxID: inbox.ID}, NotFilter{From: []string{"mjl+altrel@beacon.example"}}, []int64{inboxAltReply.ID, inboxMinimal.ID})
+	testFilter(false, Filter{To: []string{"beacon+altrel@other.example"}}, znf, []int64{inboxFlags.ID})
+	testFilter(false, Filter{MailboxID: inbox.ID}, NotFilter{To: []string{"beacon+altrel@other.example"}}, []int64{inboxAltReply.ID, inboxMinimal.ID})
+	testFilter(false, Filter{From: []string{"mjl+altrel@beacon.example", "bogus"}}, znf, []int64{})
+	testFilter(false, Filter{To: []string{"beacon+altrel@other.example", "bogus"}}, znf, []int64{})
 	testFilter(false, Filter{Subject: []string{"test", "alt", "rel"}}, znf, []int64{inboxFlags.ID})
 	testFilter(false, Filter{MailboxID: inbox.ID}, NotFilter{Subject: []string{"alt"}}, []int64{inboxAltReply.ID, inboxMinimal.ID})
 	testFilter(false, Filter{MailboxID: inbox.ID, Words: []string{"the text body", "body", "the "}}, znf, []int64{inboxFlags.ID})

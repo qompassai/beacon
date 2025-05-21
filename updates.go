@@ -14,8 +14,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/updates"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/updates"
 )
 
 func cmdUpdatesAddSigned(c *cmd) {
@@ -141,7 +141,7 @@ var updatesTemplate = htmltemplate.Must(htmltemplate.New("changelog").Parse(`<!d
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>mox changelog</title>
+		<title>beacon changelog</title>
 		<style>
 body, html { padding: 1em; font-size: 16px; }
 * { font-size: inherit; font-family: ubuntu, lato, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
@@ -261,12 +261,12 @@ func cmdUpdatesServe(c *cmd) {
 				"FromVersion": fromVersion,
 				"Changes":     cl.Changes,
 			})
-			if err != nil && !moxio.IsClosed(err) {
+			if err != nil && !beaconio.IsClosed(err) {
 				log.Printf("writing changelog html: %v", err)
 			}
 		} else {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			if err := json.NewEncoder(w).Encode(cl); err != nil && !moxio.IsClosed(err) {
+			if err := json.NewEncoder(w).Encode(cl); err != nil && !beaconio.IsClosed(err) {
 				log.Printf("writing changelog json: %v", err)
 			}
 		}

@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/publicsuffix"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/publicsuffix"
 )
 
 func ExampleLookup() {

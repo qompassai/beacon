@@ -26,11 +26,11 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 type importListener struct {
@@ -265,11 +265,11 @@ func importStart(log mlog.Log, accName string, f *os.File, skipMailboxPrefix str
 	}
 
 	// Ensure token is registered before returning, with context that can be canceled.
-	ctx, cancel := context.WithCancel(mox.Shutdown)
+	ctx, cancel := context.WithCancel(beacon.Shutdown)
 	importers.Events <- importEvent{token, []byte(": keepalive\n\n"), nil, cancel}
 
 	log.Info("starting import")
-	go importMessages(ctx, log.WithCid(mox.Cid()), token, acc, tx, zr, tr, f, skipMailboxPrefix)
+	go importMessages(ctx, log.WithCid(beacon.Cid()), token, acc, tx, zr, tr, f, skipMailboxPrefix)
 	f = nil // importMessages is now responsible for closing and removing.
 
 	return token, false, nil

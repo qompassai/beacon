@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 var searchMsg = strings.ReplaceAll(`Date: Mon, 1 Jan 2022 10:00:00 +0100 (CEST)
-From: mjl <mjl@mox.example>
-Subject: mox
-To: mox <mox@mox.example>
-Cc: <xcc@mox.example>
-Bcc: <bcc@mox.example>
-Reply-To: <noreply@mox.example>
-Message-Id: <123@mox.example>
+From: mjl <mjl@beacon.example>
+Subject: beacon
+To: beacon <beacon@beacon.example>
+Cc: <xcc@beacon.example>
+Bcc: <bcc@beacon.example>
+Reply-To: <noreply@beacon.example>
+Message-Id: <123@beacon.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary=x
 
@@ -59,7 +59,7 @@ func (tc *testconn) xesearch(exp imapclient.UntaggedEsearch) {
 func TestSearch(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Select("inbox")
 
 	// Add 5 and delete first 4 messages. So UIDs start at 5.
@@ -101,7 +101,7 @@ func TestSearch(t *testing.T) {
 	tc.transactf("ok", "search answered")
 	tc.xsearch(3)
 
-	tc.transactf("ok", `search bcc "bcc@mox.example"`)
+	tc.transactf("ok", `search bcc "bcc@beacon.example"`)
 	tc.xsearch(2, 3)
 
 	tc.transactf("ok", "search before 1-Jan-2038")
@@ -115,7 +115,7 @@ func TestSearch(t *testing.T) {
 	tc.xsearch()
 	tc.transactf("ok", `search body "Joe" text "Blurdybloop"`)
 	tc.xsearch(1)
-	tc.transactf("ok", `search body "Joe" not text "mox"`)
+	tc.transactf("ok", `search body "Joe" not text "beacon"`)
 	tc.xsearch(1)
 	tc.transactf("ok", `search body "Joe" not not body "Joe"`)
 	tc.xsearch(1)
@@ -124,7 +124,7 @@ func TestSearch(t *testing.T) {
 	tc.transactf("ok", `search body "this is html"`)
 	tc.xsearch(2, 3)
 
-	tc.transactf("ok", `search cc "xcc@mox.example"`)
+	tc.transactf("ok", `search cc "xcc@beacon.example"`)
 	tc.xsearch(2, 3)
 
 	tc.transactf("ok", `search deleted`)
@@ -199,7 +199,7 @@ func TestSearch(t *testing.T) {
 	tc.transactf("ok", `search larger 1`)
 	tc.xsearch(1, 2, 3)
 
-	tc.transactf("ok", `search not text "mox"`)
+	tc.transactf("ok", `search not text "beacon"`)
 	tc.xsearch(1)
 
 	tc.transactf("ok", `search or seen unseen`)
@@ -232,10 +232,10 @@ func TestSearch(t *testing.T) {
 	tc.transactf("ok", `search undraft`)
 	tc.xsearch(1, 2)
 
-	tc.transactf("no", `search charset unknown text "mox"`)
-	tc.transactf("ok", `search charset us-ascii text "mox"`)
+	tc.transactf("no", `search charset unknown text "beacon"`)
+	tc.transactf("ok", `search charset us-ascii text "beacon"`)
 	tc.xsearch(2, 3)
-	tc.transactf("ok", `search charset utf-8 text "mox"`)
+	tc.transactf("ok", `search charset utf-8 text "beacon"`)
 	tc.xsearch(2, 3)
 
 	esearchall := func(ss string) imapclient.UntaggedEsearch {
@@ -304,10 +304,10 @@ func TestSearch(t *testing.T) {
 	tc.transactf("ok", "uid search return (min max count all) UID 5,7")
 	tc.xesearch(imapclient.UntaggedEsearch{UID: true, Min: 5, Max: 7, Count: uint32ptr(2), All: esearchall0("5,7")})
 
-	tc.transactf("no", `search return () charset unknown text "mox"`)
-	tc.transactf("ok", `search return () charset us-ascii text "mox"`)
+	tc.transactf("no", `search return () charset unknown text "beacon"`)
+	tc.transactf("ok", `search return () charset us-ascii text "beacon"`)
 	tc.xesearch(esearchall("2:3"))
-	tc.transactf("ok", `search return () charset utf-8 text "mox"`)
+	tc.transactf("ok", `search return () charset utf-8 text "beacon"`)
 	tc.xesearch(esearchall("2:3"))
 
 	tc.transactf("bad", `search return (unknown) all`)

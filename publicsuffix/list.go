@@ -21,8 +21,8 @@ import (
 	"golang.org/x/exp/slog"
 	"golang.org/x/net/idna"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
 )
 
 // todo: automatically fetch new lists periodically? compare it with the old one. refuse it if it changed too much, especially if it contains far fewer entries than before.

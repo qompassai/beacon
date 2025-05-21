@@ -8,15 +8,15 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/store"
 )
 
 func cmdExportMaildir(c *cmd) {
 	c.params = "dst-dir account-path [mailbox]"
 	c.help = `Export one or all mailboxes from an account in maildir format.
 
-Export bypasses a running mox instance. It opens the account mailbox/message
-database file directly. This may block if a running mox instance also has the
+Export bypasses a running beacon instance. It opens the account mailbox/message
+database file directly. This may block if a running beacon instance also has the
 database open, e.g. for IMAP connections. To export from a running instance, use
 the accounts web page.
 `
@@ -30,8 +30,8 @@ func cmdExportMbox(c *cmd) {
 
 Using mbox is not recommended. Maildir is a better format.
 
-Export bypasses a running mox instance. It opens the account mailbox/message
-database file directly. This may block if a running mox instance also has the
+Export bypasses a running beacon instance. It opens the account mailbox/message
+database file directly. This may block if a running beacon instance also has the
 database open, e.g. for IMAP connections. To export from a running instance, use
 the accounts web page.
 

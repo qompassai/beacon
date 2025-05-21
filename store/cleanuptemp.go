@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 // CloseRemoveTempFile closes and removes f, a file described by descr. Often

@@ -7,9 +7,9 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/imapclient"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/imapclient"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 func TestCondstore(t *testing.T) {
@@ -34,7 +34,7 @@ func testCondstoreQresync(t *testing.T, qresync bool) {
 		capability = "Qresync"
 	}
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Enable(capability)
 	tc.transactf("ok", "Select inbox")
 	tc.xuntaggedOpt(false, imapclient.UntaggedResult{Status: imapclient.OK, RespText: imapclient.RespText{Code: "HIGHESTMODSEQ", CodeArg: imapclient.CodeHighestModSeq(1), More: "x"}})
@@ -101,13 +101,13 @@ func testCondstoreQresync(t *testing.T, qresync bool) {
 	// tc2 is a client without condstore, so no modseq responses.
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 	tc2.client.Select("inbox")
 
 	// tc3 is a client with condstore, so with modseq responses.
 	tc3 := startNoSwitchboard(t)
 	defer tc3.close()
-	tc3.client.Login("mjl@mox.example", "testtest")
+	tc3.client.Login("mjl@beacon.example", "testtest")
 	tc3.client.Enable(capability)
 	tc3.client.Select("inbox")
 
@@ -150,9 +150,9 @@ func testCondstoreQresync(t *testing.T, qresync bool) {
 		imapclient.UntaggedFetch{Seq: 6, Attrs: []imapclient.FetchAttr{imapclient.FetchUID(6), noflags, imapclient.FetchModSeq(clientModseq + 4)}},
 	)
 
-	mox.SetPedantic(true)
+	beacon.SetPedantic(true)
 	tc.transactf("bad", `Fetch 1 Flags (Changedsince 0)`) // 0 not allowed in syntax.
-	mox.SetPedantic(false)
+	beacon.SetPedantic(false)
 	tc.transactf("ok", "Uid fetch 1 (Flags) (Changedsince 0)")
 	tc.xuntagged(imapclient.UntaggedFetch{Seq: 1, Attrs: []imapclient.FetchAttr{imapclient.FetchUID(1), noflags, imapclient.FetchModSeq(clientModseq)}})
 
@@ -357,7 +357,7 @@ func testCondstoreQresync(t *testing.T, qresync bool) {
 			xtc.close()
 			store.CheckConsistencyOnClose = true
 		}()
-		xtc.client.Login("mjl@mox.example", "testtest")
+		xtc.client.Login("mjl@beacon.example", "testtest")
 		fn(xtc)
 		tagcount++
 		label := fmt.Sprintf("l%d", tagcount)
@@ -444,13 +444,13 @@ func testCondstoreQresync(t *testing.T, qresync bool) {
 	// tc2o is a client without condstore, so no modseq responses.
 	tc2o := startNoSwitchboard(t)
 	defer tc2o.close()
-	tc2o.client.Login("mjl@mox.example", "testtest")
+	tc2o.client.Login("mjl@beacon.example", "testtest")
 	tc2o.client.Select("otherbox")
 
 	// tc3o is a client with condstore, so with modseq responses.
 	tc3o := startNoSwitchboard(t)
 	defer tc3o.close()
-	tc3o.client.Login("mjl@mox.example", "testtest")
+	tc3o.client.Login("mjl@beacon.example", "testtest")
 	tc3o.client.Enable(capability)
 	tc3o.client.Select("otherbox")
 
@@ -529,7 +529,7 @@ func testQresync(t *testing.T, tc *testconn, clientModseq int64) {
 
 	// Vanished not allowed without first enabling qresync. ../rfc/7162:1697
 	xtc := startNoSwitchboard(t)
-	xtc.client.Login("mjl@mox.example", "testtest")
+	xtc.client.Login("mjl@beacon.example", "testtest")
 	xtc.transactf("ok", "Select inbox (Condstore)")
 	xtc.transactf("bad", "Uid Fetch 1:* (Flags) (Changedsince 1 Vanished)")
 	// Prevent triggering the consistency checker, we still have modseq/createseq at 0.
@@ -553,7 +553,7 @@ func testQresync(t *testing.T, tc *testconn, clientModseq int64) {
 
 	// Must enable qresync explicitly before using. ../rfc/7162:1446
 	xtc = startNoSwitchboard(t)
-	xtc.client.Login("mjl@mox.example", "testtest")
+	xtc.client.Login("mjl@beacon.example", "testtest")
 	xtc.transactf("bad", "Select inbox (Qresync 1 0)")
 	// Prevent triggering the consistency checker, we still have modseq/createseq at 0.
 	store.CheckConsistencyOnClose = false

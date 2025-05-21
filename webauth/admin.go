@@ -12,9 +12,9 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 // Admin is for admin logins, with authentication by password, and sessions only
@@ -42,7 +42,7 @@ func (a *adminSessionAuth) login(ctx context.Context, log mlog.Log, username, pa
 	a.Lock()
 	defer a.Unlock()
 
-	p := mox.ConfigDirPath(mox.Conf.Static.AdminPasswordFile)
+	p := beacon.ConfigDirPath(beacon.Conf.Static.AdminPasswordFile)
 	buf, err := os.ReadFile(p)
 	if err != nil {
 		return false, "", fmt.Errorf("reading password file: %v", err)

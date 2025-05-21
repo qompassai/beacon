@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/mjl-/mox/scram"
+	"github.com/qompassai/beacon/scram"
 )
 
 func Example() {

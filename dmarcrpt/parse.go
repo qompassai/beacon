@@ -14,9 +14,9 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
 )
 
 var ErrNoReport = errors.New("no dmarc aggregate report found in message")
@@ -24,7 +24,7 @@ var ErrNoReport = errors.New("no dmarc aggregate report found in message")
 // ParseReport parses an XML aggregate feedback report.
 // The maximum report size is 20MB.
 func ParseReport(r io.Reader) (*Feedback, error) {
-	r = &moxio.LimitReader{R: r, Limit: 20 * 1024 * 1024}
+	r = &beaconio.LimitReader{R: r, Limit: 20 * 1024 * 1024}
 	var feedback Feedback
 	d := xml.NewDecoder(r)
 	if err := d.Decode(&feedback); err != nil {
@@ -39,7 +39,7 @@ func ParseReport(r io.Reader) (*Feedback, error) {
 func ParseMessageReport(elog *slog.Logger, r io.ReaderAt) (*Feedback, error) {
 	log := mlog.New("dmarcrpt", elog)
 	// ../rfc/7489:1801
-	p, err := message.Parse(log.Logger, true, &moxio.LimitAtReader{R: r, Limit: 15 * 1024 * 1024})
+	p, err := message.Parse(log.Logger, true, &beaconio.LimitAtReader{R: r, Limit: 15 * 1024 * 1024})
 	if err != nil {
 		return nil, fmt.Errorf("parsing mail message: %s", err)
 	}

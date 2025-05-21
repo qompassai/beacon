@@ -1412,7 +1412,7 @@ const localStorageRemove = (k) => {
 	catch (err) {
 	}
 };
-const client = new api.Client().withOptions({ csrfHeader: 'x-mox-csrf', login: login }).withAuthToken(localStorageGet('webmailcsrftoken') || '');
+const client = new api.Client().withOptions({ csrfHeader: 'x-beacon-csrf', login: login }).withAuthToken(localStorageGet('webmailcsrftoken') || '');
 // Link returns a clickable link with rel="noopener noreferrer".
 const link = (href, anchorOpt) => dom.a(attr.href(href), attr.rel('noopener noreferrer'), attr.target('_blank'), anchorOpt || href);
 // Returns first own account address matching an address in l.
@@ -2153,7 +2153,7 @@ const cmdHelp = async () => {
 			settingsPut({ ...settings, showShortcuts: true });
 			remove();
 			cmdHelp();
-		})), dom.div(style({ marginTop: '2ex' }), 'Mox is open source email server software, this is version ' + moxversion + '. Feedback, including bug reports, is appreciated! ', link('https://github.com/mjl-/mox/issues/new'), '.'))));
+		})), dom.div(style({ marginTop: '2ex' }), 'Mox is open source email server software, this is version ' + beaconversion + '. Feedback, including bug reports, is appreciated! ', link('https://github.com/mjl-/beacon/issues/new'), '.'))));
 };
 // Show tooltips for either the focused element, or otherwise for all elements
 // that aren't reachable with tabindex and aren't marked specially to prevent
@@ -2250,7 +2250,7 @@ const compose = (opts) => {
 			Cc: ccViews.map(v => v.input.value).filter(s => s),
 			Bcc: bccViews.map(v => v.input.value).filter(s => s),
 			ReplyTo: replyTo,
-			UserAgent: 'moxwebmail/' + moxversion,
+			UserAgent: 'beaconwebmail/' + beaconversion,
 			Subject: subject.value,
 			TextBody: body.value,
 			Attachments: files,
@@ -2850,7 +2850,7 @@ const newMsgitemView = (mi, msglistView, otherMailbox, listMailboxes, receivedTi
 			// mailbox whether to move. We don't move messages already in the destination
 			// mailbox, and also skip messages in the Sent mailbox when there are also messages
 			// from other mailboxes.
-			e.dataTransfer.setData('application/vnd.mox.messages', JSON.stringify(msglistView.selected().map(miv => [miv.messageitem.Message.MailboxID, miv.messageitem.Message.ID])));
+			e.dataTransfer.setData('application/vnd.beacon.messages', JSON.stringify(msglistView.selected().map(miv => [miv.messageitem.Message.MailboxID, miv.messageitem.Message.ID])));
 		}, 
 		// Thread root with kids can be collapsed/expanded with double click.
 		settings.threading !== api.ThreadMode.ThreadOff && !msgitemView.parent && msgitemView.kids.length > 0 ?
@@ -4810,7 +4810,7 @@ const newMailboxView = (xmb, mailboxlistView, otherMailbox) => {
 		e.preventDefault();
 		mbv.root.classList.toggle('dropping', false);
 		const sentMailboxID = mailboxlistView.mailboxes().find(mb => mb.Sent)?.ID;
-		const mailboxMsgIDs = JSON.parse(e.dataTransfer.getData('application/vnd.mox.messages'));
+		const mailboxMsgIDs = JSON.parse(e.dataTransfer.getData('application/vnd.beacon.messages'));
 		const msgIDs = mailboxMsgIDs
 			.filter(mbMsgID => mbMsgID[0] !== xmb.ID)
 			.filter(mbMsgID => mailboxMsgIDs.length === 1 || !sentMailboxID || mbMsgID[0] !== sentMailboxID || !otherMailbox(sentMailboxID))
@@ -6369,7 +6369,7 @@ const showUnhandledError = (err, lineno, colno) => {
 	const xerrmsg = err.toString();
 	const box = dom.div(style({ position: 'absolute', bottom: '1ex', left: '1ex', backgroundColor: 'rgba(249, 191, 191, .9)', maxWidth: '14em', padding: '.25em .5em', borderRadius: '.25em', fontSize: '.8em', wordBreak: 'break-all', zIndex: zindexes.shortcut }), dom.div(style({ marginBottom: '.5ex' }), '' + xerrmsg), dom.clickbutton('Details', function click() {
 		box.remove();
-		let msg = `Mox version: ${moxversion}
+		let msg = `Mox version: ${beaconversion}
 Browser: ${window.navigator.userAgent}
 File: webmail.html
 Lineno: ${lineno || '-'}
@@ -6383,7 +6383,7 @@ Stack trace: ${stack}
 Details of the error and browser:
 
 ` + '```\n' + msg + '```\n';
-		const remove = popup(style({ maxWidth: '60em' }), dom.h1('A JavaScript error occurred'), dom.pre(dom._class('mono'), style({ backgroundColor: '#f8f8f8', padding: '1ex', borderRadius: '.15em', border: '1px solid #ccc', whiteSpace: 'pre-wrap' }), msg), dom.br(), dom.div('There is a good chance this is a bug in Mox Webmail.'), dom.div('Consider filing a bug report ("issue") at ', link('https://github.com/mjl-/mox/issues/new?title=' + encodeURIComponent('mox webmail js error: "' + xerrmsg + '"') + '&body=' + encodeURIComponent(body), 'https://github.com/mjl-/mox/issues/new'), '. The link includes the error details.'), dom.div('Before reporting you could check previous ', link('https://github.com/mjl-/mox/issues?q=is%3Aissue+"mox+webmail+js+error%3A"', 'webmail bug reports'), '.'), dom.br(), dom.div('Your feedback will help improve mox, thanks!'), dom.br(), dom.div(style({ textAlign: 'right' }), dom.clickbutton('Close and silence errors for 1 week', function click() {
+		const remove = popup(style({ maxWidth: '60em' }), dom.h1('A JavaScript error occurred'), dom.pre(dom._class('mono'), style({ backgroundColor: '#f8f8f8', padding: '1ex', borderRadius: '.15em', border: '1px solid #ccc', whiteSpace: 'pre-wrap' }), msg), dom.br(), dom.div('There is a good chance this is a bug in Mox Webmail.'), dom.div('Consider filing a bug report ("issue") at ', link('https://github.com/mjl-/beacon/issues/new?title=' + encodeURIComponent('beacon webmail js error: "' + xerrmsg + '"') + '&body=' + encodeURIComponent(body), 'https://github.com/mjl-/beacon/issues/new'), '. The link includes the error details.'), dom.div('Before reporting you could check previous ', link('https://github.com/mjl-/beacon/issues?q=is%3Aissue+"beacon+webmail+js+error%3A"', 'webmail bug reports'), '.'), dom.br(), dom.div('Your feedback will help improve beacon, thanks!'), dom.br(), dom.div(style({ textAlign: 'right' }), dom.clickbutton('Close and silence errors for 1 week', function click() {
 			remove();
 			settingsPut({ ...settings, ignoreErrorsUntil: Math.round(new Date().getTime() / 1000 + 7 * 24 * 3600) });
 		}), ' ', dom.clickbutton('Close', function click() {

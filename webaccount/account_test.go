@@ -24,16 +24,16 @@ import (
 	"github.com/mjl-/bstore"
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/webauth"
 )
 
 var ctxbg = context.Background()
 
 func init() {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	webauth.BadAuthDelay = 0
 }
 
@@ -75,9 +75,9 @@ func tneedErrorCode(t *testing.T, code string, fn func()) {
 
 func TestAccount(t *testing.T) {
 	os.RemoveAll("../testdata/httpaccount/data")
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/httpaccount/mox.conf")
-	mox.ConfigDynamicPath = filepath.Join(filepath.Dir(mox.ConfigStaticPath), "domains.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/httpaccount/beacon.conf")
+	beacon.ConfigDynamicPath = filepath.Join(filepath.Dir(beacon.ConfigStaticPath), "domains.conf")
+	beacon.MustLoadConfig(true, false)
 	log := mlog.New("webaccount", nil)
 	acc, err := store.OpenAccount(log, "mjl")
 	tcheck(t, err, "open account")
@@ -99,14 +99,14 @@ func TestAccount(t *testing.T) {
 	ctx := context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	// Missing login token.
-	tneedErrorCode(t, "user:error", func() { api.Login(ctx, "", "mjl@mox.example", "test1234") })
+	tneedErrorCode(t, "user:error", func() { api.Login(ctx, "", "mjl@beacon.example", "test1234") })
 
 	// Login with loginToken.
 	loginCookie := &http.Cookie{Name: "webaccountlogin"}
 	loginCookie.Value = api.LoginPrep(ctx)
 	reqInfo.Request.Header = http.Header{"Cookie": []string{loginCookie.String()}}
 
-	csrfToken := api.Login(ctx, loginCookie.Value, "mjl@mox.example", "test1234")
+	csrfToken := api.Login(ctx, loginCookie.Value, "mjl@beacon.example", "test1234")
 	var sessionCookie *http.Cookie
 	for _, c := range respRec.Result().Cookies() {
 		if c.Name == "webaccountsession" {
@@ -121,8 +121,8 @@ func TestAccount(t *testing.T) {
 	// Valid loginToken, but bad credentials.
 	loginCookie.Value = api.LoginPrep(ctx)
 	reqInfo.Request.Header = http.Header{"Cookie": []string{loginCookie.String()}}
-	tneedErrorCode(t, "user:loginFailed", func() { api.Login(ctx, loginCookie.Value, "mjl@mox.example", "badauth") })
-	tneedErrorCode(t, "user:loginFailed", func() { api.Login(ctx, loginCookie.Value, "baduser@mox.example", "badauth") })
+	tneedErrorCode(t, "user:loginFailed", func() { api.Login(ctx, loginCookie.Value, "mjl@beacon.example", "badauth") })
+	tneedErrorCode(t, "user:loginFailed", func() { api.Login(ctx, loginCookie.Value, "baduser@beacon.example", "badauth") })
 	tneedErrorCode(t, "user:loginFailed", func() { api.Login(ctx, loginCookie.Value, "baduser@baddomain.example", "badauth") })
 
 	type httpHeaders [][2]string
@@ -132,8 +132,8 @@ func TestAccount(t *testing.T) {
 	cookieBad := &http.Cookie{Name: "webaccountsession", Value: "AAAAAAAAAAAAAAAAAAAAAA mjl"}
 	hdrSessionOK := [2]string{"Cookie", cookieOK.String()}
 	hdrSessionBad := [2]string{"Cookie", cookieBad.String()}
-	hdrCSRFOK := [2]string{"x-mox-csrf", string(csrfToken)}
-	hdrCSRFBad := [2]string{"x-mox-csrf", "AAAAAAAAAAAAAAAAAAAAAA"}
+	hdrCSRFOK := [2]string{"x-beacon-csrf", string(csrfToken)}
+	hdrCSRFBad := [2]string{"x-beacon-csrf", "AAAAAAAAAAAAAAAAAAAAAA"}
 
 	testHTTP := func(method, path string, headers httpHeaders, expStatusCode int, expHeaders httpHeaders, check func(resp *http.Response)) {
 		t.Helper()
@@ -211,13 +211,13 @@ func TestAccount(t *testing.T) {
 
 	// SetPassword needs the token.
 	sessionToken := store.SessionToken(strings.SplitN(sessionCookie.Value, " ", 2)[0])
-	reqInfo = requestInfo{"mjl@mox.example", "mjl", sessionToken, respRec, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
+	reqInfo = requestInfo{"mjl@beacon.example", "mjl", sessionToken, respRec, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
 	ctx = context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	api.SetPassword(ctx, "test1234")
 
 	fullName, _, dests := api.Account(ctx)
-	api.DestinationSave(ctx, "mjl@mox.example", dests["mjl@mox.example"], dests["mjl@mox.example"]) // todo: save modified value and compare it afterwards
+	api.DestinationSave(ctx, "mjl@beacon.example", dests["mjl@beacon.example"], dests["mjl@beacon.example"]) // todo: save modified value and compare it afterwards
 
 	api.AccountSaveFullName(ctx, fullName+" changed") // todo: check if value was changed
 	api.AccountSaveFullName(ctx, fullName)
@@ -241,7 +241,7 @@ func TestAccount(t *testing.T) {
 
 		r := httptest.NewRequest("POST", "/import", &reqBody)
 		r.Header.Add("Content-Type", mpw.FormDataContentType())
-		r.Header.Add("x-mox-csrf", string(csrfToken))
+		r.Header.Add("x-beacon-csrf", string(csrfToken))
 		r.Header.Add("Cookie", cookieOK.String())
 		w := httptest.NewRecorder()
 		handle(apiHandler, false, w, r)

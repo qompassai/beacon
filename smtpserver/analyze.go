@@ -12,20 +12,20 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/iprev"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/subjectpass"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/iprev"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/subjectpass"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 type delivery struct {
@@ -214,7 +214,7 @@ func analyze(ctx context.Context, log mlog.Log, resolver dns.Resolver, d deliver
 		} else if d, err := dns.ParseDomain(report.PolicyPublished.Domain); err != nil {
 			log.Infox("parsing domain in dmarc aggregate report", err)
 			headers += "X-Mox-DMARCReport-Error: could not parse domain in published policy\r\n"
-		} else if _, ok := mox.Conf.Domain(d); !ok {
+		} else if _, ok := beacon.Conf.Domain(d); !ok {
 			log.Info("dmarc aggregate report for domain not configured, ignoring", slog.Any("domain", d))
 			headers += "X-Mox-DMARCReport-Error: published policy domain unrecognized\r\n"
 		} else if report.ReportMetadata.DateRange.End > time.Now().Unix()+60 {
@@ -266,7 +266,7 @@ func analyze(ctx context.Context, log mlog.Log, resolver dns.Resolver, d deliver
 				log.Info("tlsrpt policy domain", slog.String("domain", p.Policy.Domain))
 				if d, err := dns.ParseDomain(p.Policy.Domain); err != nil {
 					log.Infox("parsing domain in tls report", err)
-				} else if _, ok := mox.Conf.Domain(d); ok || d == mox.Conf.Static.HostnameDomain {
+				} else if _, ok := beacon.Conf.Domain(d); ok || d == beacon.Conf.Static.HostnameDomain {
 					known = true
 					break
 				}

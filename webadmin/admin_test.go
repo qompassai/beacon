@@ -21,18 +21,18 @@ import (
 
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/webauth"
 )
 
 var ctxbg = context.Background()
 
 func init() {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	webauth.BadAuthDelay = 0
 }
 
@@ -74,14 +74,14 @@ func readBody(r io.Reader) string {
 
 func TestAdminAuth(t *testing.T) {
 	os.RemoveAll("../testdata/webadmin/data")
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/webadmin/mox.conf")
-	mox.ConfigDynamicPath = filepath.Join(filepath.Dir(mox.ConfigStaticPath), "domains.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/webadmin/beacon.conf")
+	beacon.ConfigDynamicPath = filepath.Join(filepath.Dir(beacon.ConfigStaticPath), "domains.conf")
+	beacon.MustLoadConfig(true, false)
 
-	adminpwhash, err := bcrypt.GenerateFromPassword([]byte("moxtest123"), bcrypt.DefaultCost)
+	adminpwhash, err := bcrypt.GenerateFromPassword([]byte("beacontest123"), bcrypt.DefaultCost)
 	tcheck(t, err, "generate bcrypt hash")
 
-	path := mox.ConfigDirPath(mox.Conf.Static.AdminPasswordFile)
+	path := beacon.ConfigDirPath(beacon.Conf.Static.AdminPasswordFile)
 	err = os.WriteFile(path, adminpwhash, 0660)
 	tcheck(t, err, "write password file")
 	defer os.Remove(path)
@@ -95,14 +95,14 @@ func TestAdminAuth(t *testing.T) {
 	ctx := context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	// Missing login token.
-	tneedErrorCode(t, "user:error", func() { api.Login(ctx, "", "moxtest123") })
+	tneedErrorCode(t, "user:error", func() { api.Login(ctx, "", "beacontest123") })
 
 	// Login with loginToken.
 	loginCookie := &http.Cookie{Name: "webadminlogin"}
 	loginCookie.Value = api.LoginPrep(ctx)
 	reqInfo.Request.Header = http.Header{"Cookie": []string{loginCookie.String()}}
 
-	csrfToken := api.Login(ctx, loginCookie.Value, "moxtest123")
+	csrfToken := api.Login(ctx, loginCookie.Value, "beacontest123")
 	var sessionCookie *http.Cookie
 	for _, c := range respRec.Result().Cookies() {
 		if c.Name == "webadminsession" {
@@ -126,8 +126,8 @@ func TestAdminAuth(t *testing.T) {
 	cookieBad := &http.Cookie{Name: "webadminsession", Value: "AAAAAAAAAAAAAAAAAAAAAA"}
 	hdrSessionOK := [2]string{"Cookie", cookieOK.String()}
 	hdrSessionBad := [2]string{"Cookie", cookieBad.String()}
-	hdrCSRFOK := [2]string{"x-mox-csrf", string(csrfToken)}
-	hdrCSRFBad := [2]string{"x-mox-csrf", "AAAAAAAAAAAAAAAAAAAAAA"}
+	hdrCSRFOK := [2]string{"x-beacon-csrf", string(csrfToken)}
+	hdrCSRFBad := [2]string{"x-beacon-csrf", "AAAAAAAAAAAAAAAAAAAAAA"}
 
 	testHTTP := func(method, path string, headers httpHeaders, expStatusCode int, expHeaders httpHeaders, check func(resp *http.Response)) {
 		t.Helper()
@@ -209,34 +209,34 @@ func TestCheckDomain(t *testing.T) {
 
 	resolver := dns.MockResolver{
 		MX: map[string][]*net.MX{
-			"mox.example.": {{Host: "mail.mox.example.", Pref: 10}},
+			"beacon.example.": {{Host: "mail.beacon.example.", Pref: 10}},
 		},
 		A: map[string][]string{
-			"mail.mox.example.": {"127.0.0.2"},
+			"mail.beacon.example.": {"127.0.0.2"},
 		},
 		AAAA: map[string][]string{
-			"mail.mox.example.": {"127.0.0.2"},
+			"mail.beacon.example.": {"127.0.0.2"},
 		},
 		TXT: map[string][]string{
-			"mox.example.":                 {"v=spf1 mx -all"},
-			"test._domainkey.mox.example.": {"v=DKIM1;h=sha256;k=ed25519;p=ln5zd/JEX4Jy60WAhUOv33IYm2YZMyTQAdr9stML504="},
-			"_dmarc.mox.example.":          {"v=DMARC1; p=reject; rua=mailto:mjl@mox.example"},
-			"_smtp._tls.mox.example":       {"v=TLSRPTv1; rua=mailto:tlsrpt@mox.example;"},
-			"_mta-sts.mox.example":         {"v=STSv1; id=20160831085700Z"},
+			"beacon.example.":                 {"v=spf1 mx -all"},
+			"test._domainkey.beacon.example.": {"v=DKIM1;h=sha256;k=ed25519;p=ln5zd/JEX4Jy60WAhUOv33IYm2YZMyTQAdr9stML504="},
+			"_dmarc.beacon.example.":          {"v=DMARC1; p=reject; rua=mailto:mjl@beacon.example"},
+			"_smtp._tls.beacon.example":       {"v=TLSRPTv1; rua=mailto:tlsrpt@beacon.example;"},
+			"_mta-sts.beacon.example":         {"v=STSv1; id=20160831085700Z"},
 		},
 		CNAME: map[string]string{},
 	}
 
 	listener := config.Listener{
 		IPs:            []string{"127.0.0.2"},
-		Hostname:       "mox.example",
-		HostnameDomain: dns.Domain{ASCII: "mox.example"},
+		Hostname:       "beacon.example",
+		HostnameDomain: dns.Domain{ASCII: "beacon.example"},
 	}
 	listener.SMTP.Enabled = true
 	listener.AutoconfigHTTPS.Enabled = true
 	listener.MTASTSHTTPS.Enabled = true
 
-	mox.Conf.Static.Listeners = map[string]config.Listener{
+	beacon.Conf.Static.Listeners = map[string]config.Listener{
 		"public": listener,
 	}
 	domain := config.Domain{
@@ -258,8 +258,8 @@ func TestCheckDomain(t *testing.T) {
 			Sign: []string{"test", "test2"},
 		},
 	}
-	mox.Conf.Dynamic.Domains = map[string]config.Domain{
-		"mox.example": domain,
+	beacon.Conf.Dynamic.Domains = map[string]config.Domain{
+		"beacon.example": domain,
 	}
 
 	// Make a dialer that fails immediately before actually connecting.
@@ -267,7 +267,7 @@ func TestCheckDomain(t *testing.T) {
 	close(done)
 	dialer := &net.Dialer{Deadline: time.Now().Add(-time.Second), Cancel: done}
 
-	checkDomain(ctxbg, resolver, dialer, "mox.example")
+	checkDomain(ctxbg, resolver, dialer, "beacon.example")
 	// todo: check returned data
 
 	Admin{}.Domains(ctxbg)             // todo: check results

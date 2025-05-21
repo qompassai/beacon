@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mjl-/mox/dns"
+	"github.com/qompassai/beacon/dns"
 )
 
 // Pedantic enables stricter parsing.

@@ -3,7 +3,6 @@ default: build
 build: build0 frontend build1
 
 build0:
-	# build early to catch syntax errors
 	CGO_ENABLED=0 go build
 	CGO_ENABLED=0 go vet ./...
 	CGO_ENABLED=0 go vet -tags integration
@@ -132,4 +131,3 @@ buildall:
 	GOOS=solaris GOARCH=amd64 go build
 	GOOS=aix GOARCH=ppc64 go build
 	GOOS=windows GOARCH=amd64 go build
-	# no plan9 for now

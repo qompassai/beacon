@@ -11,16 +11,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/imapclient"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/imapclient"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 // Fuzz the server. For each fuzz string, we set up servers in various connection states, and write the string as command.
 func FuzzServer(f *testing.F) {
 	seed := []string{
-		fmt.Sprintf("authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@mox.example\u0000testtest"))),
+		fmt.Sprintf("authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@beacon.example\u0000testtest"))),
 		"*",
 		"capability",
 		"noop",
@@ -60,10 +60,10 @@ func FuzzServer(f *testing.F) {
 	}
 
 	log := mlog.New("imapserver", nil)
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/imapserverfuzz/mox.conf")
-	mox.MustLoadConfig(true, false)
-	dataDir := mox.ConfigDirPath(mox.Conf.Static.DataDir)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/imapserverfuzz/beacon.conf")
+	beacon.MustLoadConfig(true, false)
+	dataDir := beacon.ConfigDirPath(beacon.Conf.Static.DataDir)
 	os.RemoveAll(dataDir)
 	acc, err := store.OpenAccount(log, "mjl")
 	if err != nil {
@@ -137,9 +137,9 @@ func FuzzServer(f *testing.F) {
 		// Each command brings the connection state one step further. We try the fuzzing
 		// input for each state.
 		run([]string{})
-		run([]string{"login mjl@mox.example testtest"})
-		run([]string{"login mjl@mox.example testtest", "select inbox"})
+		run([]string{"login mjl@beacon.example testtest"})
+		run([]string{"login mjl@beacon.example testtest", "select inbox"})
 		xappend := fmt.Sprintf("append inbox () {%d+}\r\n%s", len(exampleMsg), exampleMsg)
-		run([]string{"login mjl@mox.example testtest", "select inbox", xappend})
+		run([]string{"login mjl@beacon.example testtest", "select inbox", xappend})
 	})
 }

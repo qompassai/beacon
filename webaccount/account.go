@@ -26,13 +26,13 @@ import (
 	"github.com/mjl-/sherpadoc"
 	"github.com/mjl-/sherpaprom"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/webauth"
 )
 
 var pkglog = mlog.New("webaccount", nil)
@@ -46,7 +46,7 @@ var accountHTML []byte
 //go:embed account.js
 var accountJS []byte
 
-var webaccountFile = &mox.WebappFile{
+var webaccountFile = &beacon.WebappFile{
 	HTML:     accountHTML,
 	JS:       accountJS,
 	HTMLPath: filepath.FromSlash("webaccount/account.html"),
@@ -66,11 +66,11 @@ func mustParseAPI(api string, buf []byte) (doc sherpadoc.Section) {
 var sherpaHandlerOpts *sherpa.HandlerOpts
 
 func makeSherpaHandler(cookiePath string, isForwarded bool) (http.Handler, error) {
-	return sherpa.NewHandler("/api/", moxvar.Version, Account{cookiePath, isForwarded}, &accountDoc, sherpaHandlerOpts)
+	return sherpa.NewHandler("/api/", beaconvar.Version, Account{cookiePath, isForwarded}, &accountDoc, sherpaHandlerOpts)
 }
 
 func init() {
-	collector, err := sherpaprom.NewCollector("moxaccount", nil)
+	collector, err := sherpaprom.NewCollector("beaconaccount", nil)
 	if err != nil {
 		pkglog.Fatalx("creating sherpa prometheus collector", err)
 	}
@@ -129,7 +129,7 @@ type Account struct {
 }
 
 func handle(apiHandler http.Handler, isForwarded bool, w http.ResponseWriter, r *http.Request) {
-	ctx := context.WithValue(r.Context(), mlog.CidKey, mox.Cid())
+	ctx := context.WithValue(r.Context(), mlog.CidKey, beacon.Cid())
 	log := pkglog.WithContext(ctx).With(slog.String("userauth", ""))
 
 	// Without authentication. The token is unguessable.
@@ -291,7 +291,7 @@ func handle(apiHandler http.Handler, isForwarded bool, w http.ResponseWriter, r 
 			log.Check(err, "closing form file")
 		}()
 		skipMailboxPrefix := r.FormValue("skipMailboxPrefix")
-		tmpf, err := os.CreateTemp("", "mox-import")
+		tmpf, err := os.CreateTemp("", "beacon-import")
 		if err != nil {
 			http.Error(w, "500 - internal server error - "+err.Error(), http.StatusInternalServerError)
 			return
@@ -418,7 +418,7 @@ func (Account) SetPassword(ctx context.Context, password string) {
 // sherpadoc understands unnamed struct fields.
 func (Account) Account(ctx context.Context) (string, dns.Domain, map[string]config.Destination) {
 	reqInfo := ctx.Value(requestInfoCtxKey).(requestInfo)
-	accConf, ok := mox.Conf.Account(reqInfo.AccountName)
+	accConf, ok := beacon.Conf.Account(reqInfo.AccountName)
 	if !ok {
 		xcheckf(ctx, errors.New("not found"), "looking up account")
 	}
@@ -427,11 +427,11 @@ func (Account) Account(ctx context.Context) (string, dns.Domain, map[string]conf
 
 func (Account) AccountSaveFullName(ctx context.Context, fullName string) {
 	reqInfo := ctx.Value(requestInfoCtxKey).(requestInfo)
-	_, ok := mox.Conf.Account(reqInfo.AccountName)
+	_, ok := beacon.Conf.Account(reqInfo.AccountName)
 	if !ok {
 		xcheckf(ctx, errors.New("not found"), "looking up account")
 	}
-	err := mox.AccountFullNameSave(ctx, reqInfo.AccountName, fullName)
+	err := beacon.AccountFullNameSave(ctx, reqInfo.AccountName, fullName)
 	xcheckf(ctx, err, "saving account full name")
 }
 
@@ -440,7 +440,7 @@ func (Account) AccountSaveFullName(ctx context.Context, fullName string) {
 // error is returned. Otherwise newDest is saved and the configuration reloaded.
 func (Account) DestinationSave(ctx context.Context, destName string, oldDest, newDest config.Destination) {
 	reqInfo := ctx.Value(requestInfoCtxKey).(requestInfo)
-	accConf, ok := mox.Conf.Account(reqInfo.AccountName)
+	accConf, ok := beacon.Conf.Account(reqInfo.AccountName)
 	if !ok {
 		xcheckf(ctx, errors.New("not found"), "looking up account")
 	}
@@ -458,7 +458,7 @@ func (Account) DestinationSave(ctx context.Context, destName string, oldDest, ne
 	newDest.HostTLSReports = curDest.HostTLSReports
 	newDest.DomainTLSReports = curDest.DomainTLSReports
 
-	err := mox.DestinationSave(ctx, reqInfo.AccountName, destName, newDest)
+	err := beacon.DestinationSave(ctx, reqInfo.AccountName, destName, newDest)
 	xcheckf(ctx, err, "saving destination")
 }
 

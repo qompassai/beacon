@@ -15,12 +15,12 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/queue"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/queue"
 )
 
 func tcheckf(t *testing.T, err error, format string, args ...any) {
@@ -39,9 +39,9 @@ func tcompare(t *testing.T, got, expect any) {
 
 func TestEvaluations(t *testing.T) {
 	os.RemoveAll("../testdata/dmarcdb/data")
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/dmarcdb/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/dmarcdb/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	EvalDB = nil
 
 	_, err := evalDB(ctxbg)
@@ -80,7 +80,7 @@ func TestEvaluations(t *testing.T) {
 		Disposition:     dmarcrpt.DispositionNone,
 		AlignedDKIMPass: true,
 		AlignedSPFPass:  true,
-		EnvelopeTo:      "mox.example",
+		EnvelopeTo:      "beacon.example",
 		EnvelopeFrom:    "sender1.example",
 		HeaderFrom:      "sender1.example",
 		DKIMResults: []dmarcrpt.DKIMAuthResult{
@@ -161,9 +161,9 @@ func TestSendReports(t *testing.T) {
 	mlog.SetConfig(map[string]slog.Level{"": slog.LevelDebug})
 
 	os.RemoveAll("../testdata/dmarcdb/data")
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/dmarcdb/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/dmarcdb/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	EvalDB = nil
 
 	db, err := evalDB(ctxbg)
@@ -199,7 +199,7 @@ func TestSendReports(t *testing.T) {
 		Disposition:     dmarcrpt.DispositionNone,
 		AlignedDKIMPass: true,
 		AlignedSPFPass:  true,
-		EnvelopeTo:      "mox.example",
+		EnvelopeTo:      "beacon.example",
 		EnvelopeFrom:    "sender.example",
 		HeaderFrom:      "sender.example",
 		DKIMResults: []dmarcrpt.DKIMAuthResult{
@@ -222,8 +222,8 @@ func TestSendReports(t *testing.T) {
 		XMLName: xml.Name{Local: "feedback"},
 		Version: "1.0",
 		ReportMetadata: dmarcrpt.ReportMetadata{
-			OrgName: "mail.mox.example",
-			Email:   "postmaster@mail.mox.example",
+			OrgName: "mail.beacon.example",
+			Email:   "postmaster@mail.beacon.example",
 			DateRange: dmarcrpt.DateRange{
 				Begin: end.Add(-1 * time.Hour).Unix(),
 				End:   end.Add(-time.Second).Unix(),
@@ -249,7 +249,7 @@ func TestSendReports(t *testing.T) {
 					},
 				},
 				Identifiers: dmarcrpt.Identifiers{
-					EnvelopeTo:   "mox.example",
+					EnvelopeTo:   "beacon.example",
 					EnvelopeFrom: "sender.example",
 					HeaderFrom:   "sender.example",
 				},
@@ -286,7 +286,7 @@ func TestSendReports(t *testing.T) {
 	test := func(evals []Evaluation, expAggrAddrs map[string]struct{}, expErrorAddrs map[string]struct{}, optExpReport *dmarcrpt.Feedback) {
 		t.Helper()
 
-		mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
+		beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
 
 		for _, e := range evals {
 			err := db.Insert(ctxbg, &e)
@@ -298,7 +298,7 @@ func TestSendReports(t *testing.T) {
 
 		queueAdd = func(ctx context.Context, log mlog.Log, qm *queue.Msg, msgFile *os.File) error {
 			// Read message file. Also write copy to disk for inspection.
-			buf, err := io.ReadAll(&moxio.AtReader{R: msgFile})
+			buf, err := io.ReadAll(&beaconio.AtReader{R: msgFile})
 			tcheckf(t, err, "read report message")
 			err = os.WriteFile("../testdata/dmarcdb/data/report.eml", append(append([]byte{}, qm.MsgPrefix...), buf...), 0600)
 			tcheckf(t, err, "write report message")
@@ -341,7 +341,7 @@ func TestSendReports(t *testing.T) {
 		tcompare(t, errorAddrs, map[string]struct{}{})
 
 		// Caus Start to stop.
-		mox.ShutdownCancel()
+		beacon.ShutdownCancel()
 		step <- time.Minute
 	}
 

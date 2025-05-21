@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/mjl-/mox/ratelimit"
+	"github.com/qompassai/beacon/ratelimit"
 )
 
 func ExampleLimiter() {

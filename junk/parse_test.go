@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 func FuzzParseMessage(f *testing.F) {

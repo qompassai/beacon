@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mjl-/mox/scram"
+	"github.com/qompassai/beacon/scram"
 )
 
 // Capability requests a list of capabilities from the server. They are returned in

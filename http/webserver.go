@@ -27,19 +27,19 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
 )
 
 func recvid(r *http.Request) string {
-	cid := mox.CidFromCtx(r.Context())
+	cid := beacon.CidFromCtx(r.Context())
 	if cid <= 0 {
 		return ""
 	}
-	return " (id " + mox.ReceivedID(cid) + ")"
+	return " (id " + beacon.ReceivedID(cid) + ")"
 }
 
 // WebHandle serves an HTTP request by going through the list of WebHandlers,
@@ -48,7 +48,7 @@ func recvid(r *http.Request) string {
 // If no handler matched, false is returned.
 // WebHandle sets w.Name to that of the matching handler.
 func WebHandle(w *loggingWriter, r *http.Request, host dns.Domain) (handled bool) {
-	redirects, handlers := mox.Conf.WebServer()
+	redirects, handlers := beacon.Conf.WebServer()
 
 	for from, to := range redirects {
 		if host != from {
@@ -333,7 +333,7 @@ func HandleStatic(h *config.WebStatic, compress bool, w http.ResponseWriter, r *
 			}
 		}
 		err = lsTemplate.Execute(w, map[string]any{"Files": files})
-		if err != nil && !moxio.IsClosed(err) {
+		if err != nil && !beaconio.IsClosed(err) {
 			log().Errorx("executing directory listing template", err)
 		}
 		return true

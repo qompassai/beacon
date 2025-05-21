@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mtasts"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mtasts"
 )
 
 func ExampleGet() {

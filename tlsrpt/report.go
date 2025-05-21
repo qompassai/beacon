@@ -21,10 +21,10 @@ import (
 
 	"github.com/mjl-/adns"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
 )
 
 var ErrNoReport = errors.New("no tlsrpt report found")
@@ -415,7 +415,7 @@ func TLSFailureDetails(err error) (ResultType, string) {
 	var reasonCode string
 	if errors.Is(err, os.ErrDeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
 		reasonCode = "io-timeout-during-handshake"
-	} else if moxio.IsClosed(err) || errors.Is(err, io.ErrClosedPipe) {
+	} else if beaconio.IsClosed(err) || errors.Is(err, io.ErrClosedPipe) {
 		reasonCode = "connection-closed-during-handshake"
 	} else {
 		// Attempt to get a local, outgoing TLS alert.
@@ -439,7 +439,7 @@ func TLSFailureDetails(err error) (ResultType, string) {
 // Parse parses a Report.
 // The maximum size is 20MB.
 func Parse(r io.Reader) (*ReportJSON, error) {
-	r = &moxio.LimitReader{R: r, Limit: 20 * 1024 * 1024}
+	r = &beaconio.LimitReader{R: r, Limit: 20 * 1024 * 1024}
 	var report ReportJSON
 	if err := json.NewDecoder(r).Decode(&report); err != nil {
 		return nil, err
@@ -455,7 +455,7 @@ func ParseMessage(elog *slog.Logger, r io.ReaderAt) (*ReportJSON, error) {
 	log := mlog.New("tlsrpt", elog)
 
 	// ../rfc/8460:905
-	p, err := message.Parse(log.Logger, true, &moxio.LimitAtReader{R: r, Limit: 15 * 1024 * 1024})
+	p, err := message.Parse(log.Logger, true, &beaconio.LimitAtReader{R: r, Limit: 15 * 1024 * 1024})
 	if err != nil {
 		return nil, fmt.Errorf("parsing mail message: %s", err)
 	}

@@ -16,13 +16,13 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 func backupctl(ctx context.Context, ctl *ctl) {
@@ -45,7 +45,7 @@ func backupctl(ctx context.Context, ctl *ctl) {
 	// Set when an error is encountered. At the end, we warn if set.
 	var incomplete bool
 
-	// We'll be writing output, and logging both to mox and the ctl stream.
+	// We'll be writing output, and logging both to beacon and the ctl stream.
 	writer := ctl.writer()
 
 	// Format easily readable output for the user.
@@ -63,7 +63,7 @@ func backupctl(ctx context.Context, ctl *ctl) {
 		return b.Bytes()
 	}
 
-	// Log an error to both the mox service as the user running "mox backup".
+	// Log an error to both the beacon service as the user running "beacon backup".
 	pkglogx := func(prefix, text string, err error, attrs ...slog.Attr) {
 		ctl.log.Errorx(text, err, attrs...)
 
@@ -96,7 +96,7 @@ func backupctl(ctx context.Context, ctl *ctl) {
 		xwarnx("destination data directory already exists", nil, slog.String("dir", dstDataDir))
 	}
 
-	srcDataDir := filepath.Clean(mox.DataDirPath("."))
+	srcDataDir := filepath.Clean(beacon.DataDirPath("."))
 
 	// When creating a file in the destination, we first ensure its directory exists.
 	// We track which directories we created, to prevent needless syscalls.
@@ -280,8 +280,8 @@ func backupctl(ctx context.Context, ctl *ctl) {
 		xerrx("creating destination data directory", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(dstDataDir, "moxversion"), []byte(moxvar.Version), 0660); err != nil {
-		xerrx("writing moxversion", err)
+	if err := os.WriteFile(filepath.Join(dstDataDir, "beaconversion"), []byte(beaconvar.Version), 0660); err != nil {
+		xerrx("writing beaconversion", err)
 	}
 	backupDB(dmarcdb.ReportsDB, "dmarcrpt.db")
 	backupDB(dmarcdb.EvalDB, "dmarceval.db")
@@ -502,7 +502,7 @@ func backupctl(ctx context.Context, ctl *ctl) {
 	// hardlink/copy the messages. We track the accounts we handled, and skip the
 	// account directories when handling "all other files" below.
 	accounts := map[string]struct{}{}
-	for _, accName := range mox.Conf.Accounts() {
+	for _, accName := range beacon.Conf.Accounts() {
 		acc, err := store.OpenAccount(ctl.log, accName)
 		if err != nil {
 			xerrx("opening account for copying (will try to copy as regular files later)", err, slog.String("account", accName))

@@ -18,7 +18,7 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 // Archiver can archive multiple mailboxes and their messages.
@@ -333,7 +333,7 @@ func ExportMessages(ctx context.Context, log mlog.Log, db *bstore.DB, accountDir
 			} else {
 				p = filepath.Join(p, "new")
 			}
-			name := fmt.Sprintf("%d.%d.mox:2,", m.Received.Unix(), m.ID)
+			name := fmt.Sprintf("%d.%d.beacon:2,", m.Received.Unix(), m.ID)
 
 			// Standard flags. May need to be sorted.
 			if m.Flags.Draft {
@@ -408,7 +408,7 @@ func ExportMessages(ctx context.Context, log mlog.Log, db *bstore.DB, accountDir
 			return w.Close()
 		}
 
-		mailfrom := "mox"
+		mailfrom := "beacon"
 		if m.MailFrom != "" {
 			mailfrom = m.MailFrom
 		}
@@ -525,7 +525,7 @@ func ExportMessages(ctx context.Context, log mlog.Log, db *bstore.DB, accountDir
 				}
 			} else {
 
-				mboxtmp, err = os.CreateTemp("", "mox-mail-export-mbox")
+				mboxtmp, err = os.CreateTemp("", "beacon-mail-export-mbox")
 				if err != nil {
 					return fmt.Errorf("creating temp mbox file: %v", err)
 				}

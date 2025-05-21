@@ -12,25 +12,25 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/mjl-/mox/dane"
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/iprev"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/spf"
-	"github.com/mjl-/mox/subjectpass"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/updates"
+	"github.com/qompassai/beacon/dane"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/iprev"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/spf"
+	"github.com/qompassai/beacon/subjectpass"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/updates"
 )
 
 var metricHTTPClient = promauto.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name:    "mox_httpclient_request_duration_seconds",
+		Name:    "beacon_httpclient_request_duration_seconds",
 		Help:    "HTTP requests lookups.",
 		Buckets: []float64{0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30},
 	},
@@ -77,20 +77,20 @@ func httpClientObserve(ctx context.Context, elog *slog.Logger, pkg, method strin
 func init() {
 	dane.MetricVerify = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_dane_verify_total",
-			Help: "Total number of DANE verification attempts, including mox_dane_verify_errors_total.",
+			Name: "beacon_dane_verify_total",
+			Help: "Total number of DANE verification attempts, including beacon_dane_verify_errors_total.",
 		},
 	)
 	dane.MetricVerifyErrors = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_dane_verify_errors_total",
+			Name: "beacon_dane_verify_errors_total",
 			Help: "Total number of DANE verification failures, causing connections to fail.",
 		},
 	)
 
 	dkim.MetricSign = counterVec{promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_dkim_sign_total",
+			Name: "beacon_dkim_sign_total",
 			Help: "DKIM messages signings, label key is the type of key, rsa or ed25519.",
 		},
 		[]string{
@@ -100,7 +100,7 @@ func init() {
 	dkim.MetricVerify = histogramVec{
 		promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mox_dkim_verify_duration_seconds",
+				Name:    "beacon_dkim_verify_duration_seconds",
 				Help:    "DKIM verify, including lookup, duration and result.",
 				Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20},
 			},
@@ -113,7 +113,7 @@ func init() {
 
 	dmarc.MetricVerify = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_dmarc_verify_duration_seconds",
+			Name:    "beacon_dmarc_verify_duration_seconds",
 			Help:    "DMARC verify, including lookup, duration and result.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20},
 		},
@@ -126,7 +126,7 @@ func init() {
 	dns.MetricLookup = histogramVec{
 		promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mox_dns_lookup_duration_seconds",
+				Name:    "beacon_dns_lookup_duration_seconds",
 				Help:    "DNS lookups.",
 				Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30},
 			},
@@ -140,7 +140,7 @@ func init() {
 
 	dnsbl.MetricLookup = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_dnsbl_lookup_duration_seconds",
+			Name:    "beacon_dnsbl_lookup_duration_seconds",
 			Help:    "DNSBL lookup",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20},
 		},
@@ -152,7 +152,7 @@ func init() {
 
 	iprev.MetricIPRev = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_iprev_lookup_total",
+			Name:    "beacon_iprev_lookup_total",
 			Help:    "Number of iprev lookups.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30},
 		},
@@ -161,7 +161,7 @@ func init() {
 
 	mtasts.MetricGet = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_mtasts_get_duration_seconds",
+			Name:    "beacon_mtasts_get_duration_seconds",
 			Help:    "MTA-STS get of policy, including lookup, duration and result.",
 			Buckets: []float64{0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20},
 		},
@@ -173,7 +173,7 @@ func init() {
 
 	smtpclient.MetricCommands = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_smtpclient_command_duration_seconds",
+			Name:    "beacon_smtpclient_command_duration_seconds",
 			Help:    "SMTP client command duration and result codes in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30, 60, 120},
 		},
@@ -185,7 +185,7 @@ func init() {
 	)}
 	smtpclient.MetricTLSRequiredNoIgnored = counterVec{promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_smtpclient_tlsrequiredno_ignored_total",
+			Name: "beacon_smtpclient_tlsrequiredno_ignored_total",
 			Help: "Connection attempts with TLS policy findings ignored due to message with TLS-Required: No header. Does not cover case where TLS certificate cannot be PKIX-verified.",
 		},
 		[]string{
@@ -198,7 +198,7 @@ func init() {
 
 	spf.MetricVerify = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_spf_verify_duration_seconds",
+			Name:    "beacon_spf_verify_duration_seconds",
 			Help:    "SPF verify, including lookup, duration and result.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20},
 		},
@@ -209,13 +209,13 @@ func init() {
 
 	subjectpass.MetricGenerate = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_subjectpass_generate_total",
+			Name: "beacon_subjectpass_generate_total",
 			Help: "Number of generated subjectpass challenges.",
 		},
 	)
 	subjectpass.MetricVerify = counterVec{promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_subjectpass_verify_total",
+			Name: "beacon_subjectpass_verify_total",
 			Help: "Number of subjectpass verifications.",
 		},
 		[]string{
@@ -225,7 +225,7 @@ func init() {
 
 	tlsrpt.MetricLookup = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_tlsrpt_lookup_duration_seconds",
+			Name:    "beacon_tlsrpt_lookup_duration_seconds",
 			Help:    "TLSRPT lookups with result.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30},
 		},
@@ -234,7 +234,7 @@ func init() {
 
 	updates.MetricLookup = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_updates_lookup_duration_seconds",
+			Name:    "beacon_updates_lookup_duration_seconds",
 			Help:    "Updates lookup with result.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30},
 		},
@@ -242,7 +242,7 @@ func init() {
 	)}
 	updates.MetricFetchChangelog = histogramVec{promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_updates_fetchchangelog_duration_seconds",
+			Name:    "beacon_updates_fetchchangelog_duration_seconds",
 			Help:    "Fetch changelog with result.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30},
 		},

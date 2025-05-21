@@ -10,15 +10,15 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 func TestThreadingUpgrade(t *testing.T) {
 	log := mlog.New("store", nil)
 	os.RemoveAll("../testdata/store/data")
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/store/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/store/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	acc, err := OpenAccount(log, "mjl")
 	tcheck(t, err, "open account")
 	defer func() {

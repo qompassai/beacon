@@ -49,21 +49,21 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/scram"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/scram"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // If true, each time an account is closed its database file is checked for
 // consistency. If an inconsistency is found, panic is called. Set by default
-// because of all the packages with tests, the mox main function sets it to
+// because of all the packages with tests, the beacon main function sets it to
 // false again.
 var CheckConsistencyOnClose = true
 
@@ -703,7 +703,7 @@ type LoginSession struct {
 	Created            time.Time `bstore:"nonzero,default now"` // Of original login.
 	Expires            time.Time `bstore:"nonzero"`             // Extended each time it is used.
 	SessionTokenBinary [16]byte  `bstore:"nonzero"`             // Stored in cookie, like "webmailsession" or "webaccountsession".
-	CSRFTokenBinary    [16]byte  // For API requests, in "x-mox-csrf" header.
+	CSRFTokenBinary    [16]byte  // For API requests, in "x-beacon-csrf" header.
 	AccountName        string    `bstore:"nonzero"`
 	LoginAddress       string    `bstore:"nonzero"`
 
@@ -781,7 +781,7 @@ func OpenAccount(log mlog.Log, name string) (*Account, error) {
 		return acc, nil
 	}
 
-	if _, ok := mox.Conf.Account(name); !ok {
+	if _, ok := beacon.Conf.Account(name); !ok {
 		return nil, ErrAccountUnknown
 	}
 
@@ -795,7 +795,7 @@ func OpenAccount(log mlog.Log, name string) (*Account, error) {
 
 // openAccount opens an existing account, or creates it if it is missing.
 func openAccount(log mlog.Log, name string) (a *Account, rerr error) {
-	dir := filepath.Join(mox.DataDirPath("accounts"), name)
+	dir := filepath.Join(beacon.DataDirPath("accounts"), name)
 	return OpenAccountDB(log, dir, name)
 }
 
@@ -930,7 +930,7 @@ func OpenAccountDB(log mlog.Log, accountDir, accountName string) (a *Account, re
 			close(acc.threadsCompleted)
 		}()
 
-		err := upgradeThreads(mox.Shutdown, log, acc, &up)
+		err := upgradeThreads(beacon.Shutdown, log, acc, &up)
 		if err != nil {
 			a.threadsErr = err
 			log.Errorx("upgrading account for threading, aborted", err, slog.String("account", a.Name))
@@ -968,9 +968,9 @@ func initAccount(db *bstore.DB) error {
 			return err
 		}
 
-		if len(mox.Conf.Static.DefaultMailboxes) > 0 {
+		if len(beacon.Conf.Static.DefaultMailboxes) > 0 {
 			// Deprecated in favor of InitialMailboxes.
-			defaultMailboxes := mox.Conf.Static.DefaultMailboxes
+			defaultMailboxes := beacon.Conf.Static.DefaultMailboxes
 			mailboxes := []string{"Inbox"}
 			for _, name := range defaultMailboxes {
 				if strings.EqualFold(name, "Inbox") {
@@ -999,7 +999,7 @@ func initAccount(db *bstore.DB) error {
 				}
 			}
 		} else {
-			mailboxes := mox.Conf.Static.InitialMailboxes
+			mailboxes := beacon.Conf.Static.InitialMailboxes
 			var zerouse config.SpecialUseMailboxes
 			if mailboxes.SpecialUse == zerouse && len(mailboxes.Regular) == 0 {
 				mailboxes = DefaultInitialMailboxes
@@ -1205,7 +1205,7 @@ func (a *Account) CheckConsistency() error {
 // Conf returns the configuration for this account if it still exists. During
 // an SMTP session, a configuration update may drop an account.
 func (a *Account) Conf() (config.Account, bool) {
-	return mox.Conf.Account(a.Name)
+	return beacon.Conf.Account(a.Name)
 }
 
 // NextUIDValidity returns the next new/unique uidvalidity to use for this account.
@@ -1434,12 +1434,12 @@ func (a *Account) DeliverMessage(log mlog.Log, tx *bstore.Tx, m *Message, msgFil
 		}
 	}
 
-	if err := moxio.LinkOrCopy(log, msgPath, msgFile.Name(), &moxio.AtReader{R: msgFile}, true); err != nil {
+	if err := beaconio.LinkOrCopy(log, msgPath, msgFile.Name(), &beaconio.AtReader{R: msgFile}, true); err != nil {
 		return fmt.Errorf("linking/copying message to new file: %w", err)
 	}
 
 	if sync {
-		if err := moxio.SyncDir(log, msgDir); err != nil {
+		if err := beaconio.SyncDir(log, msgDir); err != nil {
 			xerr := os.Remove(msgPath)
 			log.Check(xerr, "removing message after syncdir error", slog.String("path", msgPath))
 			return fmt.Errorf("sync directory: %w", err)
@@ -2016,7 +2016,7 @@ func (a *Account) QuotaMessageSize() int64 {
 	conf, _ := a.Conf()
 	size := conf.QuotaMessageSize
 	if size <= 0 {
-		size = mox.Conf.Static.QuotaMessageSize
+		size = beacon.Conf.Static.QuotaMessageSize
 	}
 	if size < 0 {
 		size = 0
@@ -2113,8 +2113,8 @@ func OpenEmail(log mlog.Log, email string) (*Account, config.Destination, error)
 	if err != nil {
 		return nil, config.Destination{}, fmt.Errorf("%w: %v", ErrUnknownCredentials, err)
 	}
-	accountName, _, dest, err := mox.FindAccount(addr.Localpart, addr.Domain, false)
-	if err != nil && (errors.Is(err, mox.ErrAccountNotFound) || errors.Is(err, mox.ErrDomainNotFound)) {
+	accountName, _, dest, err := beacon.FindAccount(addr.Localpart, addr.Domain, false)
+	if err != nil && (errors.Is(err, beacon.ErrAccountNotFound) || errors.Is(err, beacon.ErrDomainNotFound)) {
 		return nil, config.Destination{}, ErrUnknownCredentials
 	} else if err != nil {
 		return nil, config.Destination{}, fmt.Errorf("looking up address: %v", err)
@@ -2222,7 +2222,7 @@ func ParseFlagsKeywords(l []string) (flags Flags, keywords []string, rerr error)
 		if field, ok := fields[f]; ok {
 			*field = true
 		} else if seen[f] {
-			if mox.Pedantic {
+			if beacon.Pedantic {
 				return Flags{}, nil, fmt.Errorf("duplicate keyword %s", f)
 			}
 		} else {

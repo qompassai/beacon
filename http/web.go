@@ -27,15 +27,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/mjl-/mox/autotls"
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/ratelimit"
-	"github.com/mjl-/mox/webaccount"
-	"github.com/mjl-/mox/webadmin"
-	"github.com/mjl-/mox/webmail"
+	"github.com/qompassai/beacon/autotls"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/ratelimit"
+	"github.com/qompassai/beacon/webaccount"
+	"github.com/qompassai/beacon/webadmin"
+	"github.com/qompassai/beacon/webmail"
 )
 
 var pkglog = mlog.New("http", nil)
@@ -44,7 +44,7 @@ var (
 	// metricRequest tracks performance (time to write response header) of server.
 	metricRequest = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_httpserver_request_duration_seconds",
+			Name:    "beacon_httpserver_request_duration_seconds",
 			Help:    "HTTP(s) server request with handler name, protocol, method, result codes, and duration until response status code is written, in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30, 60, 120},
 		},
@@ -60,7 +60,7 @@ var (
 	// could act on.
 	metricResponse = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_httpserver_response_duration_seconds",
+			Name:    "beacon_httpserver_response_duration_seconds",
 			Help:    "HTTP(s) server response with handler name, protocol, method, result codes, and duration of entire response, in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30, 60, 120},
 		},
@@ -422,7 +422,7 @@ func (s *serve) ServeHTTP(xw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.WithValue(r.Context(), mlog.CidKey, mox.Cid())
+	ctx := context.WithValue(r.Context(), mlog.CidKey, beacon.Cid())
 	r = r.WithContext(ctx)
 
 	wf, ok := xw.(responseWriterFlusher)
@@ -495,10 +495,10 @@ func Listen() {
 
 	// Initialize listeners in deterministic order for the same potential error
 	// messages.
-	names := maps.Keys(mox.Conf.Static.Listeners)
+	names := maps.Keys(beacon.Conf.Static.Listeners)
 	sort.Strings(names)
 	for _, name := range names {
-		l := mox.Conf.Static.Listeners[name]
+		l := beacon.Conf.Static.Listeners[name]
 
 		portServe := map[int]*serve{}
 
@@ -515,7 +515,7 @@ func Listen() {
 			} else if https {
 				s.TLSConfig = l.TLS.Config
 				if l.TLS.ACME != "" {
-					tlsport := config.Port(mox.Conf.Static.ACME[l.TLS.ACME].Port, 443)
+					tlsport := config.Port(beacon.Conf.Static.ACME[l.TLS.ACME].Port, 443)
 					ensureServe(true, tlsport, "acme-tls-alpn-01")
 				}
 			}
@@ -523,7 +523,7 @@ func Listen() {
 		}
 
 		if l.TLS != nil && l.TLS.ACME != "" && (l.SMTP.Enabled && !l.SMTP.NoSTARTTLS || l.Submissions.Enabled || l.IMAPS.Enabled) {
-			port := config.Port(mox.Conf.Static.ACME[l.TLS.ACME].Port, 443)
+			port := config.Port(beacon.Conf.Static.ACME[l.TLS.ACME].Port, 443)
 			ensureServe(true, port, "acme-tls-alpn-01")
 		}
 
@@ -628,10 +628,10 @@ func Listen() {
 				}
 				// Autodiscovery uses a SRV record. It shouldn't point to a CNAME. So we directly
 				// use the mail server's host name.
-				if dom == mox.Conf.Static.HostnameDomain || dom == mox.Conf.Static.Listeners["public"].HostnameDomain {
+				if dom == beacon.Conf.Static.HostnameDomain || dom == beacon.Conf.Static.Listeners["public"].HostnameDomain {
 					return true
 				}
-				_, ok := mox.Conf.Domain(dom)
+				_, ok := beacon.Conf.Domain(dom)
 				return ok
 			}
 			srv.Handle("autoconfig", autoconfigMatch, "/mail/config-v1.1.xml", safeHeaders(http.HandlerFunc(autoconfHandle)))
@@ -670,7 +670,7 @@ func Listen() {
 		}
 
 		if l.TLS != nil && l.TLS.ACME != "" {
-			m := mox.Conf.Static.ACME[l.TLS.ACME].Manager
+			m := beacon.Conf.Static.ACME[l.TLS.ACME].Manager
 
 			// If we are listening on port 80 for plain http, also register acme http-01
 			// validation handler.
@@ -680,17 +680,17 @@ func Listen() {
 			}
 
 			hosts := map[dns.Domain]struct{}{
-				mox.Conf.Static.HostnameDomain: {},
+				beacon.Conf.Static.HostnameDomain: {},
 			}
 			if l.HostnameDomain.ASCII != "" {
 				hosts[l.HostnameDomain] = struct{}{}
 			}
 			// All domains are served on all listeners. Gather autoconfig hostnames to ensure
 			// presence of TLS certificates for.
-			for _, name := range mox.Conf.Domains() {
+			for _, name := range beacon.Conf.Domains() {
 				if dom, err := dns.ParseDomain(name); err != nil {
 					pkglog.Errorx("parsing domain from config", err)
-				} else if d, _ := mox.Conf.Domain(dom); d.DMARC != nil && d.DMARC.Domain != "" && d.DMARC.DNSDomain != dom {
+				} else if d, _ := beacon.Conf.Domain(dom); d.DMARC != nil && d.DMARC.Domain != "" && d.DMARC.DNSDomain != dom {
 					// Do not gather autoconfig name if this domain is configured to process reports
 					// for domains hosted elsewhere.
 					continue
@@ -753,7 +753,7 @@ func listen1(ip string, port int, tlsConfig *tls.Config, name string, kinds []st
 				slog.String("kinds", strings.Join(kinds, ",")),
 				slog.String("address", addr))
 		}
-		ln, err = mox.Listen(mox.Network(ip), addr)
+		ln, err = beacon.Listen(beacon.Network(ip), addr)
 		if err != nil {
 			pkglog.Fatalx("http: listen", err, slog.Any("addr", addr))
 		}
@@ -765,7 +765,7 @@ func listen1(ip string, port int, tlsConfig *tls.Config, name string, kinds []st
 				slog.String("kinds", strings.Join(kinds, ",")),
 				slog.String("address", addr))
 		}
-		ln, err = mox.Listen(mox.Network(ip), addr)
+		ln, err = beacon.Listen(beacon.Network(ip), addr)
 		if err != nil {
 			pkglog.Fatalx("https: listen", err, slog.String("addr", addr))
 		}
@@ -788,7 +788,7 @@ func listen1(ip string, port int, tlsConfig *tls.Config, name string, kinds []st
 
 // Serve starts serving on the initialized listeners.
 func Serve() {
-	loadStaticGzipCache(mox.DataDirPath("tmp/httpstaticcompresscache"), 512*1024*1024)
+	loadStaticGzipCache(beacon.DataDirPath("tmp/httpstaticcompresscache"), 512*1024*1024)
 
 	go webaccount.ImportManage()
 
@@ -804,7 +804,7 @@ func Serve() {
 			for host := range hosts {
 				// Check if certificate is already available. If so, we don't print as much after a
 				// restart, and finish more quickly if only a few certificates are missing/old.
-				if avail, err := m.CertAvailable(mox.Shutdown, pkglog, host); err != nil {
+				if avail, err := m.CertAvailable(beacon.Shutdown, pkglog, host); err != nil {
 					pkglog.Errorx("checking acme certificate availability", err, slog.Any("host", host))
 				} else if avail {
 					continue

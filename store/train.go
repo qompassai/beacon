@@ -11,10 +11,10 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/junk"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/junk"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 // ErrNoJunkFilter indicates user did not configure/enable a junk filter.
@@ -25,7 +25,7 @@ var ErrNoJunkFilter = errors.New("junkfilter: not configured")
 // Do not forget to save the filter after modifying, and to always close the filter when done.
 // An empty filter is initialized on first access of the filter.
 func (a *Account) OpenJunkFilter(ctx context.Context, log mlog.Log) (*junk.Filter, *config.JunkFilter, error) {
-	conf, ok := mox.Conf.Account(a.Name)
+	conf, ok := beacon.Conf.Account(a.Name)
 	if !ok {
 		return nil, nil, ErrAccountUnknown
 	}
@@ -34,7 +34,7 @@ func (a *Account) OpenJunkFilter(ctx context.Context, log mlog.Log) (*junk.Filte
 		return nil, jf, ErrNoJunkFilter
 	}
 
-	basePath := mox.DataDirPath("accounts")
+	basePath := beacon.DataDirPath("accounts")
 	dbPath := filepath.Join(basePath, a.Name, "junkfilter.db")
 	bloomPath := filepath.Join(basePath, a.Name, "junkfilter.bloom")
 

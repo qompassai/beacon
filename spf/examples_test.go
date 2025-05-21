@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/spf"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/spf"
 )
 
 func ExampleVerify() {

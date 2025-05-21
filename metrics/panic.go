@@ -7,7 +7,7 @@ import (
 
 var metricPanic = promauto.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "mox_panic_total",
+		Name: "beacon_panic_total",
 		Help: "Number of unhandled panics, by package.",
 	},
 	[]string{

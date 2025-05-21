@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mjl-/mox/dns"
+	"github.com/qompassai/beacon/dns"
 )
 
 type parseErr string

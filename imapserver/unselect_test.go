@@ -3,14 +3,14 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestUnselect(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Select("inbox")
 
 	tc.transactf("bad", "unselect bogus") // Leftover data.

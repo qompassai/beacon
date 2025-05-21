@@ -8,7 +8,7 @@ import (
 var (
 	metricAuth = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_authentication_total",
+			Name: "beacon_authentication_total",
 			Help: "Authentication attempts and results.",
 		},
 		[]string{
@@ -21,7 +21,7 @@ var (
 
 	metricAuthRatelimited = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_authentication_ratelimited_total",
+			Name: "beacon_authentication_ratelimited_total",
 			Help: "Authentication attempts that were refused due to rate limiting.",
 		},
 		[]string{

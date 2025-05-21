@@ -22,11 +22,11 @@ import (
 
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/webauth"
 )
 
 var ctxbg = context.Background()
@@ -74,7 +74,7 @@ func (m Message) Marshal(t *testing.T) []byte {
 		m.Date = time.Now()
 	}
 	if m.MessageID == "" {
-		m.MessageID = "<" + mox.MessageIDGen(false) + ">"
+		m.MessageID = "<" + beacon.MessageIDGen(false) + ">"
 	}
 
 	var b bytes.Buffer
@@ -139,7 +139,7 @@ func (p Part) WriteBody(t *testing.T, w io.Writer) {
 	if len(p.Parts) == 0 {
 		switch p.TransferEncoding {
 		case "base64":
-			bw := moxio.Base64Writer(w)
+			bw := beaconio.Base64Writer(w)
 			_, err := bw.Write([]byte(p.Content))
 			tcheck(t, err, "writing base64")
 			err = bw.Close()
@@ -179,20 +179,20 @@ var (
 		Part: Part{Type: "text/plain", Content: "the body"},
 	}
 	msgText = Message{
-		From:    "mjl <mjl@mox.example>",
-		To:      "mox <mox@other.example>",
+		From:    "mjl <mjl@beacon.example>",
+		To:      "beacon <beacon@other.example>",
 		Subject: "text message",
 		Part:    Part{Type: "text/plain; charset=utf-8", Content: "the body"},
 	}
 	msgHTML = Message{
-		From:    "mjl <mjl@mox.example>",
-		To:      "mox <mox@other.example>",
+		From:    "mjl <mjl@beacon.example>",
+		To:      "beacon <beacon@other.example>",
 		Subject: "html message",
-		Part:    Part{Type: "text/html", Content: `<html>the body <img src="cid:img1@mox.example" /></html>`},
+		Part:    Part{Type: "text/html", Content: `<html>the body <img src="cid:img1@beacon.example" /></html>`},
 	}
 	msgAlt = Message{
-		From:      "mjl <mjl@mox.example>",
-		To:        "mox <mox@other.example>",
+		From:      "mjl <mjl@beacon.example>",
+		To:        "beacon <beacon@other.example>",
 		Subject:   "test",
 		MessageID: "<alt@localhost>",
 		Headers:   [][2]string{{"In-Reply-To", "<previous@host.example>"}},
@@ -200,7 +200,7 @@ var (
 			Type: "multipart/alternative",
 			Parts: []Part{
 				{Type: "text/plain", Content: "the body"},
-				{Type: "text/html; charset=utf-8", Content: `<html>the body <img src="cid:img1@mox.example" /></html>`},
+				{Type: "text/html; charset=utf-8", Content: `<html>the body <img src="cid:img1@beacon.example" /></html>`},
 			},
 		},
 	}
@@ -210,8 +210,8 @@ var (
 		Part:       Part{Type: "text/plain", Content: "reply to alt"},
 	}
 	msgAltRel = Message{
-		From:    "mjl <mjl+altrel@mox.example>",
-		To:      "mox <mox+altrel@other.example>",
+		From:    "mjl <mjl+altrel@beacon.example>",
+		To:      "beacon <beacon+altrel@other.example>",
 		Subject: "test with alt and rel",
 		Headers: [][2]string{{"X-Special", "testing"}},
 		Part: Part{
@@ -223,17 +223,17 @@ var (
 					Parts: []Part{
 						{
 							Type:    "text/html; charset=utf-8",
-							Content: `<html>the body <img src="cid:img1@mox.example" /></html>`,
+							Content: `<html>the body <img src="cid:img1@beacon.example" /></html>`,
 						},
-						{Type: `image/png`, Disposition: `inline; filename="test1.png"`, ID: "<img1@mox.example>", Content: `PNG...`, TransferEncoding: "base64"},
+						{Type: `image/png`, Disposition: `inline; filename="test1.png"`, ID: "<img1@beacon.example>", Content: `PNG...`, TransferEncoding: "base64"},
 					},
 				},
 			},
 		},
 	}
 	msgAttachments = Message{
-		From:    "mjl <mjl@mox.example>",
-		To:      "mox <mox@other.example>",
+		From:    "mjl <mjl@beacon.example>",
+		To:      "beacon <beacon@other.example>",
 		Subject: "test",
 		Part: Part{
 			Type: "multipart/mixed",
@@ -287,11 +287,11 @@ func readBody(r io.Reader) string {
 // todo: check more of the results, we currently mostly check http statuses,
 // not the returned content.
 func TestWebmail(t *testing.T) {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	os.RemoveAll("../testdata/webmail/data")
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/webmail/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/webmail/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	defer store.Switchboard()()
 
 	acc, err := store.OpenAccount(pkglog, "mjl")
@@ -316,7 +316,7 @@ func TestWebmail(t *testing.T) {
 	loginCookie.Value = api.LoginPrep(ctx)
 	reqInfo.Request.Header = http.Header{"Cookie": []string{loginCookie.String()}}
 
-	csrfToken := api.Login(ctx, loginCookie.Value, "mjl@mox.example", "test1234")
+	csrfToken := api.Login(ctx, loginCookie.Value, "mjl@beacon.example", "test1234")
 	var sessionCookie *http.Cookie
 	for _, c := range respRec.Result().Cookies() {
 		if c.Name == "webmailsession" {
@@ -328,7 +328,7 @@ func TestWebmail(t *testing.T) {
 		t.Fatalf("missing session cookie")
 	}
 
-	reqInfo = requestInfo{"mjl@mox.example", "mjl", "", respRec, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
+	reqInfo = requestInfo{"mjl@beacon.example", "mjl", "", respRec, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
 	ctx = context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	tneedError(t, func() { api.MailboxCreate(ctx, "Inbox") })   // Cannot create inbox.
@@ -364,8 +364,8 @@ func TestWebmail(t *testing.T) {
 	cookieBad := &http.Cookie{Name: "webmailsession", Value: "AAAAAAAAAAAAAAAAAAAAAA mjl"}
 	hdrSessionOK := [2]string{"Cookie", cookieOK.String()}
 	hdrSessionBad := [2]string{"Cookie", cookieBad.String()}
-	hdrCSRFOK := [2]string{"x-mox-csrf", string(csrfToken)}
-	hdrCSRFBad := [2]string{"x-mox-csrf", "AAAAAAAAAAAAAAAAAAAAAA"}
+	hdrCSRFOK := [2]string{"x-beacon-csrf", string(csrfToken)}
+	hdrCSRFBad := [2]string{"x-beacon-csrf", "AAAAAAAAAAAAAAAAAAAAAA"}
 
 	testHTTP := func(method, path string, headers httpHeaders, expStatusCode int, expHeaders httpHeaders, check func(resp *http.Response)) {
 		t.Helper()
@@ -516,12 +516,12 @@ func TestWebmail(t *testing.T) {
 	testHTTP("GET", pathInboxMinimal+"/parsedmessage.js", httpHeaders{hdrSessionBad}, http.StatusForbidden, nil, nil)
 	testHTTPAuthREST("GET", pathInboxMinimal+"/parsedmessage.js", http.StatusOK, httpHeaders{ctJS}, nil)
 
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	// HTTP message: text,html,htmlexternal and msgtext,msghtml,msghtmlexternal
 	for _, elem := range []string{"text", "html", "htmlexternal", "msgtext", "msghtml", "msghtmlexternal"} {
 		testHTTP("GET", pathInboxAltRel+"/"+elem, httpHeaders{}, http.StatusForbidden, nil, nil)
 		testHTTP("GET", pathInboxAltRel+"/"+elem, httpHeaders{hdrSessionBad}, http.StatusForbidden, nil, nil)
-		mox.LimitersInit() // Reset, for too many failures.
+		beacon.LimitersInit() // Reset, for too many failures.
 	}
 
 	// The text endpoint serves JS that we generated, so should be safe, but still doesn't hurt to have a CSP.
@@ -595,7 +595,7 @@ func TestWebmail(t *testing.T) {
 	// Normally the generic /api/ auth check returns a user error. We bypass it and
 	// check for the server error.
 	sessionToken := store.SessionToken(strings.SplitN(sessionCookie.Value, " ", 2)[0])
-	reqInfo = requestInfo{"mjl@mox.example", "mjl", sessionToken, httptest.NewRecorder(), &http.Request{RemoteAddr: "127.0.0.1:1234"}}
+	reqInfo = requestInfo{"mjl@beacon.example", "mjl", sessionToken, httptest.NewRecorder(), &http.Request{RemoteAddr: "127.0.0.1:1234"}}
 	ctx = context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 	api.Logout(ctx)
 	tneedErrorCode(t, "server:error", func() { api.Logout(ctx) })

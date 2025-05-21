@@ -22,14 +22,14 @@ import (
 	"github.com/mjl-/adns"
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 var ctxbg = context.Background()
@@ -52,7 +52,7 @@ func tcompare(t *testing.T, got, exp any) {
 var keepAccount bool
 
 func setup(t *testing.T) (*store.Account, func()) {
-	// Prepare config so email can be delivered to mjl@mox.example.
+	// Prepare config so email can be delivered to mjl@beacon.example.
 
 	// Don't trigger the account consistency checks. Only remove account files on first
 	// (of randomized) runs.
@@ -64,26 +64,26 @@ func setup(t *testing.T) (*store.Account, func()) {
 	}
 
 	log := mlog.New("queue", nil)
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/queue/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/queue/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	acc, err := store.OpenAccount(log, "mjl")
 	tcheck(t, err, "open account")
 	err = acc.SetPassword(log, "testtest")
 	tcheck(t, err, "set password")
 	switchStop := store.Switchboard()
-	mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
+	beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
 	return acc, func() {
 		acc.Close()
-		mox.ShutdownCancel()
-		mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
+		beacon.ShutdownCancel()
+		beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
 		Shutdown()
 		switchStop()
 	}
 }
 
-var testmsg = strings.ReplaceAll(`From: <mjl@mox.example>
-To: <mjl@mox.example>
+var testmsg = strings.ReplaceAll(`From: <mjl@beacon.example>
+To: <mjl@beacon.example>
 Subject: test
 
 test email
@@ -110,7 +110,7 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("got %d messages in queue, expected 0", len(msgs))
 	}
 
-	path := smtp.Path{Localpart: "mjl", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "mox.example"}}}
+	path := smtp.Path{Localpart: "mjl", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "beacon.example"}}}
 	mf := prepareFile(t)
 	defer os.Remove(mf.Name())
 	defer mf.Close()
@@ -147,7 +147,7 @@ func TestQueue(t *testing.T) {
 	if next > 0 {
 		t.Fatalf("nextWork in %s, should be now", next)
 	}
-	busy := map[string]struct{}{"mox.example": {}}
+	busy := map[string]struct{}{"beacon.example": {}}
 	if x := nextWork(ctxbg, pkglog, busy); x != 24*time.Hour {
 		t.Fatalf("nextWork in %s for busy domain, should be in 24 hours", x)
 	}
@@ -155,14 +155,14 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("launchWork launched %d deliveries, expected 0", nn)
 	}
 
-	mailDomain := dns.Domain{ASCII: "mox.example"}
-	mailHost := dns.Domain{ASCII: "mail.mox.example"}
+	mailDomain := dns.Domain{ASCII: "beacon.example"}
+	mailHost := dns.Domain{ASCII: "mail.beacon.example"}
 	resolver := dns.MockResolver{
 		A: map[string][]string{
-			"mail.mox.example.":   {"127.0.0.1"},
+			"mail.beacon.example.":   {"127.0.0.1"},
 			"submission.example.": {"127.0.0.1"},
 		},
-		MX: map[string][]*net.MX{"mox.example.": {{Host: "mail.mox.example", Pref: 10}}},
+		MX: map[string][]*net.MX{"beacon.example.": {{Host: "mail.beacon.example", Pref: 10}}},
 	}
 	// Override dial function. We'll make connecting fail for now.
 	dialed := make(chan struct{}, 1)
@@ -176,7 +176,7 @@ func TestQueue(t *testing.T) {
 
 	launchWork(pkglog, resolver, map[string]struct{}{})
 
-	moxCert := fakeCert(t, "mail.mox.example", false)
+	beaconCert := fakeCert(t, "mail.beacon.example", false)
 
 	// Wait until we see the dial and the failed attempt.
 	timer := time.NewTimer(time.Second)
@@ -233,7 +233,7 @@ func TestQueue(t *testing.T) {
 		}()
 
 		// We do a minimal fake smtp server. We cannot import smtpserver.Serve due to cyclic dependencies.
-		fmt.Fprintf(server, "220 mail.mox.example\r\n")
+		fmt.Fprintf(server, "220 mail.beacon.example\r\n")
 		br := bufio.NewReader(server)
 
 		readline := func(cmd string) {
@@ -247,7 +247,7 @@ func TestQueue(t *testing.T) {
 		}
 
 		readline("ehlo")
-		writeline("250 mail.mox.example")
+		writeline("250 mail.beacon.example")
 		readline("mail")
 		writeline("250 ok")
 		readline("rcpt")
@@ -261,7 +261,7 @@ func TestQueue(t *testing.T) {
 		writeline("221 ok")
 	}
 
-	goodTLSConfig := tls.Config{Certificates: []tls.Certificate{moxCert}}
+	goodTLSConfig := tls.Config{Certificates: []tls.Certificate{beaconCert}}
 	makeFakeSMTPSTARTTLSServer := func(tlsConfig *tls.Config, nstarttls int, requiretls bool) func(server net.Conn) {
 		attempt := 0
 		return func(server net.Conn) {
@@ -272,7 +272,7 @@ func TestQueue(t *testing.T) {
 			attempt++
 
 			// We do a minimal fake smtp server. We cannot import smtpserver.Serve due to cyclic dependencies.
-			fmt.Fprintf(server, "220 mail.mox.example\r\n")
+			fmt.Fprintf(server, "220 mail.beacon.example\r\n")
 			br := bufio.NewReader(server)
 
 			readline := func(cmd string) {
@@ -286,7 +286,7 @@ func TestQueue(t *testing.T) {
 			}
 
 			readline("ehlo")
-			writeline("250-mail.mox.example")
+			writeline("250-mail.beacon.example")
 			writeline("250 starttls")
 			if nstarttls == 0 || attempt <= nstarttls {
 				readline("starttls")
@@ -301,10 +301,10 @@ func TestQueue(t *testing.T) {
 
 				readline("ehlo")
 				if requiretls {
-					writeline("250-mail.mox.example")
+					writeline("250-mail.beacon.example")
 					writeline("250 requiretls")
 				} else {
-					writeline("250 mail.mox.example")
+					writeline("250 mail.beacon.example")
 				}
 			}
 			readline("mail")
@@ -323,7 +323,7 @@ func TestQueue(t *testing.T) {
 
 	fakeSMTPSTARTTLSServer := makeFakeSMTPSTARTTLSServer(&goodTLSConfig, 0, true)
 	makeBadFakeSMTPSTARTTLSServer := func(requiretls bool) func(server net.Conn) {
-		return makeFakeSMTPSTARTTLSServer(&tls.Config{MaxVersion: tls.VersionTLS10, Certificates: []tls.Certificate{moxCert}}, 1, requiretls)
+		return makeFakeSMTPSTARTTLSServer(&tls.Config{MaxVersion: tls.VersionTLS10, Certificates: []tls.Certificate{beaconCert}}, 1, requiretls)
 	}
 
 	fakeSubmitServer := func(server net.Conn) {
@@ -332,7 +332,7 @@ func TestQueue(t *testing.T) {
 		}()
 
 		// We do a minimal fake smtp server. We cannot import smtpserver.Serve due to cyclic dependencies.
-		fmt.Fprintf(server, "220 mail.mox.example\r\n")
+		fmt.Fprintf(server, "220 mail.beacon.example\r\n")
 		br := bufio.NewReader(server)
 		br.ReadString('\n') // Should be EHLO.
 		fmt.Fprintf(server, "250-localhost\r\n")
@@ -471,8 +471,8 @@ func TestQueue(t *testing.T) {
 	}
 	// Make fake cert, and make it trusted.
 	cert := fakeCert(t, "submission.example", false)
-	mox.Conf.Static.TLS.CertPool = x509.NewCertPool()
-	mox.Conf.Static.TLS.CertPool.AddCert(cert.Leaf)
+	beacon.Conf.Static.TLS.CertPool = x509.NewCertPool()
+	beacon.Conf.Static.TLS.CertPool.AddCert(cert.Leaf)
 	tlsConfig := tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
@@ -488,22 +488,22 @@ func TestQueue(t *testing.T) {
 	fdNotTrusted := tlsrpt.FailureDetails{
 		ResultType:          tlsrpt.ResultCertificateNotTrusted,
 		SendingMTAIP:        "", // Missing due to pipe.
-		ReceivingMXHostname: "mail.mox.example",
-		ReceivingMXHelo:     "mail.mox.example",
+		ReceivingMXHostname: "mail.beacon.example",
+		ReceivingMXHelo:     "mail.beacon.example",
 		ReceivingIP:         "", // Missing due to pipe.
 		FailedSessionCount:  1,
 		FailureReasonCode:   "",
 	}
 	fdTLSAUnusable := tlsrpt.FailureDetails{
 		ResultType:          tlsrpt.ResultTLSAInvalid,
-		ReceivingMXHostname: "mail.mox.example",
+		ReceivingMXHostname: "mail.beacon.example",
 		FailedSessionCount:  0,
 		FailureReasonCode:   "all-unusable-records+ignored",
 	}
 	fdBadProtocol := tlsrpt.FailureDetails{
 		ResultType:          tlsrpt.ResultValidationFailure,
-		ReceivingMXHostname: "mail.mox.example",
-		ReceivingMXHelo:     "mail.mox.example",
+		ReceivingMXHostname: "mail.beacon.example",
+		ReceivingMXHelo:     "mail.beacon.example",
 		FailedSessionCount:  1,
 		FailureReasonCode:   "tls-remote-alert-70-protocol-version-not-supported",
 	}
@@ -534,8 +534,8 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("kick changed %d messages, expected 1", n)
 	}
 	testDeliver(fakeSMTPSTARTTLSServer)
-	checkTLSResults(t, "mox.example", "mox.example", false, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdNotTrusted)))
-	checkTLSResults(t, "mail.mox.example", "mox.example", true, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailHost)))
+	checkTLSResults(t, "beacon.example", "beacon.example", false, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdNotTrusted)))
+	checkTLSResults(t, "mail.beacon.example", "beacon.example", true, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailHost)))
 
 	// Test fallback to plain text with TLS handshake fails.
 	clearTLSResults(t)
@@ -548,15 +548,15 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("kick changed %d messages, expected 1", n)
 	}
 	testDeliver(makeBadFakeSMTPSTARTTLSServer(true))
-	checkTLSResults(t, "mox.example", "mox.example", false, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdBadProtocol)))
-	checkTLSResults(t, "mail.mox.example", "mox.example", true, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailHost, fdBadProtocol)))
+	checkTLSResults(t, "beacon.example", "beacon.example", false, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdBadProtocol)))
+	checkTLSResults(t, "mail.beacon.example", "beacon.example", true, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailHost, fdBadProtocol)))
 
 	// Add message to be delivered with DANE verification.
 	clearTLSResults(t)
 	resolver.AllAuthentic = true
 	resolver.TLSA = map[string][]adns.TLSA{
-		"_25._tcp.mail.mox.example.": {
-			{Usage: adns.TLSAUsageDANEEE, Selector: adns.TLSASelectorSPKI, MatchType: adns.TLSAMatchTypeFull, CertAssoc: moxCert.Leaf.RawSubjectPublicKeyInfo},
+		"_25._tcp.mail.beacon.example.": {
+			{Usage: adns.TLSAUsageDANEEE, Selector: adns.TLSASelectorSPKI, MatchType: adns.TLSAMatchTypeFull, CertAssoc: beaconCert.Leaf.RawSubjectPublicKeyInfo},
 		},
 	}
 	qm = MakeMsg("mjl", path, path, false, false, int64(len(testmsg)), "<dane@localhost>", nil, nil)
@@ -568,11 +568,11 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("kick changed %d messages, expected 1", n)
 	}
 	testDeliver(fakeSMTPSTARTTLSServer)
-	checkTLSResults(t, "mox.example", "mox.example", false, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdNotTrusted)))
-	checkTLSResults(t, "mail.mox.example", "mox.example", true, addCounts(1, 0, tlsrpt.Result{Policy: tlsrpt.TLSAPolicy(resolver.TLSA["_25._tcp.mail.mox.example."], mailHost), FailureDetails: []tlsrpt.FailureDetails{}}))
+	checkTLSResults(t, "beacon.example", "beacon.example", false, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdNotTrusted)))
+	checkTLSResults(t, "mail.beacon.example", "beacon.example", true, addCounts(1, 0, tlsrpt.Result{Policy: tlsrpt.TLSAPolicy(resolver.TLSA["_25._tcp.mail.beacon.example."], mailHost), FailureDetails: []tlsrpt.FailureDetails{}}))
 
 	// We should know starttls/requiretls by now.
-	rdt := store.RecipientDomainTLS{Domain: "mox.example"}
+	rdt := store.RecipientDomainTLS{Domain: "beacon.example"}
 	err = acc.DB.Get(ctxbg, &rdt)
 	tcheck(t, err, "get recipientdomaintls")
 	tcompare(t, rdt.STARTTLS, true)
@@ -593,7 +593,7 @@ func TestQueue(t *testing.T) {
 	// Check that message is delivered with all unusable DANE records.
 	clearTLSResults(t)
 	resolver.TLSA = map[string][]adns.TLSA{
-		"_25._tcp.mail.mox.example.": {
+		"_25._tcp.mail.beacon.example.": {
 			{},
 		},
 	}
@@ -606,15 +606,15 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("kick changed %d messages, expected 1", n)
 	}
 	testDeliver(fakeSMTPSTARTTLSServer)
-	checkTLSResults(t, "mox.example", "mox.example", false, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdNotTrusted)))
-	checkTLSResults(t, "mail.mox.example", "mox.example", true, addCounts(1, 0, tlsrpt.Result{Policy: tlsrpt.TLSAPolicy([]adns.TLSA{}, mailHost), FailureDetails: []tlsrpt.FailureDetails{fdTLSAUnusable}}))
+	checkTLSResults(t, "beacon.example", "beacon.example", false, addCounts(1, 0, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdNotTrusted)))
+	checkTLSResults(t, "mail.beacon.example", "beacon.example", true, addCounts(1, 0, tlsrpt.Result{Policy: tlsrpt.TLSAPolicy([]adns.TLSA{}, mailHost), FailureDetails: []tlsrpt.FailureDetails{fdTLSAUnusable}}))
 
 	// Check that message is delivered with insecure TLSA records. They should be
 	// ignored and regular STARTTLS tried.
 	clearTLSResults(t)
-	resolver.Inauthentic = []string{"tlsa _25._tcp.mail.mox.example."}
+	resolver.Inauthentic = []string{"tlsa _25._tcp.mail.beacon.example."}
 	resolver.TLSA = map[string][]adns.TLSA{
-		"_25._tcp.mail.mox.example.": {
+		"_25._tcp.mail.beacon.example.": {
 			{Usage: adns.TLSAUsageDANEEE, Selector: adns.TLSASelectorSPKI, MatchType: adns.TLSAMatchTypeFull, CertAssoc: make([]byte, sha256.Size)},
 		},
 	}
@@ -628,11 +628,11 @@ func TestQueue(t *testing.T) {
 	}
 	testDeliver(makeBadFakeSMTPSTARTTLSServer(true))
 	resolver.Inauthentic = nil
-	checkTLSResults(t, "mox.example", "mox.example", false, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdBadProtocol)))
-	checkTLSResults(t, "mail.mox.example", "mox.example", true, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailHost, fdBadProtocol)))
+	checkTLSResults(t, "beacon.example", "beacon.example", false, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailDomain, fdBadProtocol)))
+	checkTLSResults(t, "mail.beacon.example", "beacon.example", true, addCounts(0, 1, tlsrpt.MakeResult(tlsrpt.NoPolicyFound, mailHost, fdBadProtocol)))
 
 	// STARTTLS failed, so not known supported.
-	rdt = store.RecipientDomainTLS{Domain: "mox.example"}
+	rdt = store.RecipientDomainTLS{Domain: "beacon.example"}
 	err = acc.DB.Get(ctxbg, &rdt)
 	tcheck(t, err, "get recipientdomaintls")
 	tcompare(t, rdt.STARTTLS, false)
@@ -715,8 +715,8 @@ func TestQueue(t *testing.T) {
 		}
 	}
 
-	conn2, cleanup2 := prepServer(func(conn net.Conn) { fmt.Fprintf(conn, "220 mail.mox.example\r\n") })
-	conn3, cleanup3 := prepServer(func(conn net.Conn) { fmt.Fprintf(conn, "451 mail.mox.example\r\n") })
+	conn2, cleanup2 := prepServer(func(conn net.Conn) { fmt.Fprintf(conn, "220 mail.beacon.example\r\n") })
+	conn3, cleanup3 := prepServer(func(conn net.Conn) { fmt.Fprintf(conn, "451 mail.beacon.example\r\n") })
 	conn4, cleanup4 := prepServer(fakeSMTPSTARTTLSServer)
 	defer func() {
 		cleanup2()
@@ -750,7 +750,7 @@ func TestQueue(t *testing.T) {
 		if i == 4 {
 			resolver.AllAuthentic = true
 			resolver.TLSA = map[string][]adns.TLSA{
-				"_25._tcp.mail.mox.example.": {
+				"_25._tcp.mail.beacon.example.": {
 					// Non-matching zero CertAssoc, should cause failure.
 					{Usage: adns.TLSAUsageDANEEE, Selector: adns.TLSASelectorSPKI, MatchType: adns.TLSAMatchTypeSHA256, CertAssoc: make([]byte, sha256.Size)},
 				},
@@ -836,8 +836,8 @@ func checkTLSResults(t *testing.T, policyDomain, expRecipientDomain string, expI
 func TestQueueStart(t *testing.T) {
 	// Override dial function. We'll make connecting fail and check the attempt.
 	resolver := dns.MockResolver{
-		A:  map[string][]string{"mox.example.": {"127.0.0.1"}},
-		MX: map[string][]*net.MX{"mox.example.": {{Host: "mox.example", Pref: 10}}},
+		A:  map[string][]string{"beacon.example.": {"127.0.0.1"}},
+		MX: map[string][]*net.MX{"beacon.example.": {{Host: "beacon.example", Pref: 10}}},
 	}
 	dialed := make(chan struct{}, 1)
 	smtpclient.DialHook = func(ctx context.Context, dialer smtpclient.Dialer, timeout time.Duration, addr string, laddr net.Addr) (net.Conn, error) {
@@ -852,9 +852,9 @@ func TestQueueStart(t *testing.T) {
 	defer cleanup()
 	done := make(chan struct{}, 1)
 	defer func() {
-		mox.ShutdownCancel()
+		beacon.ShutdownCancel()
 		<-done
-		mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
+		beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
 	}()
 	err := Start(resolver, done)
 	tcheck(t, err, "queue start")
@@ -879,7 +879,7 @@ func TestQueueStart(t *testing.T) {
 		}
 	}
 
-	path := smtp.Path{Localpart: "mjl", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "mox.example"}}}
+	path := smtp.Path{Localpart: "mjl", IPDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "beacon.example"}}}
 	mf := prepareFile(t)
 	defer os.Remove(mf.Name())
 	defer mf.Close()
@@ -893,7 +893,7 @@ func TestQueueStart(t *testing.T) {
 	checkDialed(false)
 
 	// Kick for real, should see another attempt.
-	n, err := Kick(ctxbg, 0, "mox.example", "", nil)
+	n, err := Kick(ctxbg, 0, "beacon.example", "", nil)
 	tcheck(t, err, "kick queue")
 	if n != 1 {
 		t.Fatalf("kick changed %d messages, expected 1", n)

@@ -15,13 +15,13 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 var ctxbg = context.Background()
@@ -44,9 +44,9 @@ func TestSendReports(t *testing.T) {
 	mlog.SetConfig(map[string]slog.Level{"": mlog.LevelDebug})
 
 	os.RemoveAll("../testdata/tlsrptsend/data")
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/tlsrptsend/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/tlsrptsend/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 
 	err := tlsrptdb.Init()
 	tcheckf(t, err, "init database")
@@ -236,13 +236,13 @@ func TestSendReports(t *testing.T) {
 	}
 
 	report1 := tlsrpt.Report{
-		OrganizationName: "mox.example",
+		OrganizationName: "beacon.example",
 		DateRange: tlsrpt.TLSRPTDateRange{
 			Start: endUTC.Add(-24 * time.Hour),
 			End:   endUTC.Add(-time.Second),
 		},
-		ContactInfo: "postmaster@mox.example",
-		ReportID:    endUTC.Add(-12*time.Hour).Format("20060102") + ".sender.example@mox.example",
+		ContactInfo: "postmaster@beacon.example",
+		ReportID:    endUTC.Add(-12*time.Hour).Format("20060102") + ".sender.example@beacon.example",
 		Policies: []tlsrpt.Result{
 			{
 				Policy: tlsrpt.ResultPolicy{
@@ -292,13 +292,13 @@ func TestSendReports(t *testing.T) {
 		},
 	}
 	report2 := tlsrpt.Report{
-		OrganizationName: "mox.example",
+		OrganizationName: "beacon.example",
 		DateRange: tlsrpt.TLSRPTDateRange{
 			Start: endUTC.Add(-24 * time.Hour),
 			End:   endUTC.Add(-time.Second),
 		},
-		ContactInfo: "postmaster@mox.example",
-		ReportID:    endUTC.Add(-12*time.Hour).Format("20060102") + ".mailhost.sender.example@mox.example",
+		ContactInfo: "postmaster@beacon.example",
+		ReportID:    endUTC.Add(-12*time.Hour).Format("20060102") + ".mailhost.sender.example@beacon.example",
 		Policies: []tlsrpt.Result{
 			// The MX target policies are per-recipient domain, so the MX operator can see the
 			// affected recipient domains.
@@ -351,13 +351,13 @@ func TestSendReports(t *testing.T) {
 		},
 	}
 	report3 := tlsrpt.Report{
-		OrganizationName: "mox.example",
+		OrganizationName: "beacon.example",
 		DateRange: tlsrpt.TLSRPTDateRange{
 			Start: endUTC.Add(-24 * time.Hour),
 			End:   endUTC.Add(-time.Second),
 		},
-		ContactInfo: "postmaster@mox.example",
-		ReportID:    endUTC.Add(-12*time.Hour).Format("20060102") + ".mailhost.sender.example@mox.example",
+		ContactInfo: "postmaster@beacon.example",
+		ReportID:    endUTC.Add(-12*time.Hour).Format("20060102") + ".mailhost.sender.example@beacon.example",
 		Policies: []tlsrpt.Result{
 			// The MX target policies are per-recipient domain, so the MX operator can see the
 			// affected recipient domains.
@@ -401,7 +401,7 @@ func TestSendReports(t *testing.T) {
 	test := func(results []tlsrptdb.TLSResult, expReports map[string][]tlsrpt.Report) {
 		t.Helper()
 
-		mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
+		beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
 
 		for _, r := range results {
 			err := db.Insert(ctxbg, &r)
@@ -418,7 +418,7 @@ func TestSendReports(t *testing.T) {
 			defer mutex.Unlock()
 
 			// Read message file. Also write copy to disk for inspection.
-			buf, err := io.ReadAll(&moxio.AtReader{R: msgFile})
+			buf, err := io.ReadAll(&beaconio.AtReader{R: msgFile})
 			tcheckf(t, err, "read report message")
 			p := fmt.Sprintf("../testdata/tlsrptsend/data/report%d.eml", index)
 			index++
@@ -449,7 +449,7 @@ func TestSendReports(t *testing.T) {
 		tcompare(t, haveReports, map[string][]tlsrpt.Report{})
 
 		// Caus Start to stop.
-		mox.ShutdownCancel()
+		beacon.ShutdownCancel()
 		step <- time.Minute
 
 		leftover, err := bstore.QueryDB[tlsrptdb.TLSResult](ctxbg, db).List()
@@ -504,7 +504,7 @@ func TestSendReports(t *testing.T) {
 	test(tlsResults, map[string][]tlsrpt.Report{})
 
 	// But when we want to send report for all-successful connections, we get reports again.
-	mox.Conf.Static.OutgoingTLSReportsForAllSuccess = true
+	beacon.Conf.Static.OutgoingTLSReportsForAllSuccess = true
 	for _, report := range []*tlsrpt.Report{&report1, &report2} {
 		for i := range report.Policies {
 			report.Policies[i].Summary.TotalFailureSessionCount = 0

@@ -16,12 +16,12 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/imapclient"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/smtpclient"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/imapclient"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/smtpclient"
 )
 
 func tcheck(t *testing.T, err error, errmsg string) {
@@ -133,51 +133,51 @@ This is the message.
 		auth := func(mechanisms []string, cs *tls.ConnectionState) (sasl.Client, error) {
 			return sasl.NewClientPlain(mailfrom, password), nil
 		}
-		c, err := smtpclient.New(mox.Context, log.Logger, conn, smtpclient.TLSSkip, false, ourHostname, dns.Domain{ASCII: desthost}, smtpclient.Opts{Auth: auth})
+		c, err := smtpclient.New(beacon.Context, log.Logger, conn, smtpclient.TLSSkip, false, ourHostname, dns.Domain{ASCII: desthost}, smtpclient.Opts{Auth: auth})
 		tcheck(t, err, "smtp hello")
-		err = c.Deliver(mox.Context, mailfrom, rcptto, int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(beacon.Context, mailfrom, rcptto, int64(len(msg)), strings.NewReader(msg), false, false, false)
 		tcheck(t, err, "deliver with smtp")
 		err = c.Close()
 		tcheck(t, err, "close smtpclient")
 	}
 
-	// Make sure moxacmepebble has a TLS certificate.
-	conn, err := tls.Dial("tcp", "moxacmepebble.mox1.example:465", nil)
+	// Make sure beaconacmepebble has a TLS certificate.
+	conn, err := tls.Dial("tcp", "beaconacmepebble.beacon1.example:465", nil)
 	tcheck(t, err, "dial submission")
 	defer conn.Close()
 
-	log.Print("submitting email to moxacmepebble, waiting for imap notification at moxmail2")
+	log.Print("submitting email to beaconacmepebble, waiting for imap notification at beaconmail2")
 	t0 := time.Now()
-	deliver(true, true, "moxmail2.mox2.example:993", "moxtest2@mox2.example", "accountpass4321", func() {
-		submit(true, "moxtest1@mox1.example", "accountpass1234", "moxacmepebble.mox1.example:465", "moxtest2@mox2.example")
+	deliver(true, true, "beaconmail2.beacon2.example:993", "beacontest2@beacon2.example", "accountpass4321", func() {
+		submit(true, "beacontest1@beacon1.example", "accountpass1234", "beaconacmepebble.beacon1.example:465", "beacontest2@beacon2.example")
 	})
 	log.Print("success", slog.Duration("duration", time.Since(t0)))
 
-	log.Print("submitting email to moxmail2, waiting for imap notification at moxacmepebble")
+	log.Print("submitting email to beaconmail2, waiting for imap notification at beaconacmepebble")
 	t0 = time.Now()
-	deliver(true, true, "moxacmepebble.mox1.example:993", "moxtest1@mox1.example", "accountpass1234", func() {
-		submit(true, "moxtest2@mox2.example", "accountpass4321", "moxmail2.mox2.example:465", "moxtest1@mox1.example")
+	deliver(true, true, "beaconacmepebble.beacon1.example:993", "beacontest1@beacon1.example", "accountpass1234", func() {
+		submit(true, "beacontest2@beacon2.example", "accountpass4321", "beaconmail2.beacon2.example:465", "beacontest1@beacon1.example")
 	})
 	log.Print("success", slog.Duration("duration", time.Since(t0)))
 
-	log.Print("submitting email to postfix, waiting for imap notification at moxacmepebble")
+	log.Print("submitting email to postfix, waiting for imap notification at beaconacmepebble")
 	t0 = time.Now()
-	deliver(false, true, "moxacmepebble.mox1.example:993", "moxtest1@mox1.example", "accountpass1234", func() {
-		submit(true, "moxtest1@mox1.example", "accountpass1234", "moxacmepebble.mox1.example:465", "root@postfix.example")
-	})
-	log.Print("success", slog.Duration("duration", time.Since(t0)))
-
-	log.Print("submitting email to localserve")
-	t0 = time.Now()
-	deliver(false, false, "localserve.mox1.example:1143", "mox@localhost", "moxmoxmox", func() {
-		submit(false, "mox@localhost", "moxmoxmox", "localserve.mox1.example:1587", "moxtest1@mox1.example")
+	deliver(false, true, "beaconacmepebble.beacon1.example:993", "beacontest1@beacon1.example", "accountpass1234", func() {
+		submit(true, "beacontest1@beacon1.example", "accountpass1234", "beaconacmepebble.beacon1.example:465", "root@postfix.example")
 	})
 	log.Print("success", slog.Duration("duration", time.Since(t0)))
 
 	log.Print("submitting email to localserve")
 	t0 = time.Now()
-	deliver(false, false, "localserve.mox1.example:1143", "mox@localhost", "moxmoxmox", func() {
-		cmd := exec.Command("go", "run", ".", "sendmail", "mox@localhost")
+	deliver(false, false, "localserve.beacon1.example:1143", "beacon@localhost", "beaconbeaconbeacon", func() {
+		submit(false, "beacon@localhost", "beaconbeaconbeacon", "localserve.beacon1.example:1587", "beacontest1@beacon1.example")
+	})
+	log.Print("success", slog.Duration("duration", time.Since(t0)))
+
+	log.Print("submitting email to localserve")
+	t0 = time.Now()
+	deliver(false, false, "localserve.beacon1.example:1143", "beacon@localhost", "beaconbeaconbeacon", func() {
+		cmd := exec.Command("go", "run", ".", "sendmail", "beacon@localhost")
 		const msg = `Subject: test
 
 a message.

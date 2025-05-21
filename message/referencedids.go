@@ -3,7 +3,7 @@ package message
 import (
 	"strings"
 
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // ReferencedIDs returns the Message-IDs referenced from the References header(s),

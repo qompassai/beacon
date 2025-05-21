@@ -1,4 +1,4 @@
-module github.com/mjl-/mox
+module github.com/qompassai/beacon
 
 go 1.20
 

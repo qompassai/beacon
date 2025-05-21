@@ -34,28 +34,28 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dsn"
-	"github.com/mjl-/mox/iprev"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/ratelimit"
-	"github.com/mjl-/mox/scram"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/spf"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dsn"
+	"github.com/qompassai/beacon/iprev"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/ratelimit"
+	"github.com/qompassai/beacon/scram"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/spf"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 // We use panic and recover for error handling while executing commands.
@@ -63,7 +63,7 @@ import (
 var errIO = errors.New("io error")
 
 // If set, regular delivery/submit is sidestepped, email is accepted and
-// delivered to the account named mox.
+// delivered to the account named beacon.
 var Localserve bool
 
 var limiterConnectionRate, limiterConnections *ratelimit.Limiter
@@ -78,7 +78,7 @@ func init() {
 }
 
 func limitersInit() {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	// todo future: make these configurable
 	limiterConnectionRate = &ratelimit.Limiter{
 		WindowLimits: []ratelimit.WindowLimit{
@@ -114,7 +114,7 @@ type codes struct {
 var (
 	metricConnection = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_smtpserver_connection_total",
+			Name: "beacon_smtpserver_connection_total",
 			Help: "Incoming SMTP connections.",
 		},
 		[]string{
@@ -123,7 +123,7 @@ var (
 	)
 	metricCommands = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_smtpserver_command_duration_seconds",
+			Name:    "beacon_smtpserver_command_duration_seconds",
 			Help:    "SMTP server command duration and result codes in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30, 60, 120},
 		},
@@ -136,7 +136,7 @@ var (
 	)
 	metricDelivery = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_smtpserver_delivery_total",
+			Name: "beacon_smtpserver_delivery_total",
 			Help: "SMTP incoming message delivery from external source, not submission. Result values: delivered, reject, unknownuser, accounterror, delivererror. Reason indicates why a message was rejected/accepted.",
 		},
 		[]string{
@@ -147,7 +147,7 @@ var (
 	// Similar between ../webmail/webmail.go:/metricSubmission and ../smtpserver/server.go:/metricSubmission
 	metricSubmission = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_smtpserver_submission_total",
+			Name: "beacon_smtpserver_submission_total",
 			Help: "SMTP server incoming submission results, known values (those ending with error are server errors): ok, badmessage, badfrom, badheader, messagelimiterror, recipientlimiterror, localserveerror, queueerror.",
 		},
 		[]string{
@@ -156,7 +156,7 @@ var (
 	)
 	metricServerErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_smtpserver_errors_total",
+			Name: "beacon_smtpserver_errors_total",
 			Help: "SMTP server errors, known values: dkimsign, queuedsn.",
 		},
 		[]string{
@@ -165,7 +165,7 @@ var (
 	)
 )
 
-var jitterRand = mox.NewPseudoRand()
+var jitterRand = beacon.NewPseudoRand()
 
 func durationDefault(delay *time.Duration, def time.Duration) time.Duration {
 	if delay == nil {
@@ -177,10 +177,10 @@ func durationDefault(delay *time.Duration, def time.Duration) time.Duration {
 // Listen initializes network listeners for incoming SMTP connection.
 // The listeners are stored for a later call to Serve.
 func Listen() {
-	names := maps.Keys(mox.Conf.Static.Listeners)
+	names := maps.Keys(beacon.Conf.Static.Listeners)
 	sort.Strings(names)
 	for _, name := range names {
-		listener := mox.Conf.Static.Listeners[name]
+		listener := beacon.Conf.Static.Listeners[name]
 
 		var tlsConfig *tls.Config
 		if listener.TLS != nil {
@@ -193,7 +193,7 @@ func Listen() {
 		}
 
 		if listener.SMTP.Enabled {
-			hostname := mox.Conf.Static.HostnameDomain
+			hostname := beacon.Conf.Static.HostnameDomain
 			if listener.Hostname != "" {
 				hostname = listener.HostnameDomain
 			}
@@ -204,7 +204,7 @@ func Listen() {
 			}
 		}
 		if listener.Submission.Enabled {
-			hostname := mox.Conf.Static.HostnameDomain
+			hostname := beacon.Conf.Static.HostnameDomain
 			if listener.Hostname != "" {
 				hostname = listener.HostnameDomain
 			}
@@ -215,7 +215,7 @@ func Listen() {
 		}
 
 		if listener.Submissions.Enabled {
-			hostname := mox.Conf.Static.HostnameDomain
+			hostname := beacon.Conf.Static.HostnameDomain
 			if listener.Hostname != "" {
 				hostname = listener.HostnameDomain
 			}
@@ -238,8 +238,8 @@ func listen1(protocol, name, ip string, port int, hostname dns.Domain, tlsConfig
 			slog.String("address", addr),
 			slog.String("protocol", protocol))
 	}
-	network := mox.Network(ip)
-	ln, err := mox.Listen(network, addr)
+	network := beacon.Network(ip)
+	ln, err := beacon.Listen(network, addr)
 	if err != nil {
 		log.Fatalx("smtp: listen for smtp", err, slog.String("protocol", protocol), slog.String("listener", name))
 	}
@@ -257,7 +257,7 @@ func listen1(protocol, name, ip string, port int, hostname dns.Domain, tlsConfig
 
 			// Package is set on the resolver by the dkim/spf/dmarc/etc packages.
 			resolver := dns.StrictResolver{Log: log.Logger}
-			go serve(name, mox.Cid(), hostname, tlsConfig, conn, resolver, submission, xtls, maxMessageSize, requireTLSForAuth, requireTLSForDelivery, requireTLS, dnsBLs, firstTimeSenderDelay)
+			go serve(name, beacon.Cid(), hostname, tlsConfig, conn, resolver, submission, xtls, maxMessageSize, requireTLSForAuth, requireTLSForDelivery, requireTLS, dnsBLs, firstTimeSenderDelay)
 		}
 	}
 
@@ -286,8 +286,8 @@ type conn struct {
 	resolver              dns.Resolver
 	r                     *bufio.Reader
 	w                     *bufio.Writer
-	tr                    *moxio.TraceReader // Kept for changing trace level during cmd/auth/data.
-	tw                    *moxio.TraceWriter
+	tr                    *beaconio.TraceReader // Kept for changing trace level during cmd/auth/data.
+	tw                    *beaconio.TraceWriter
 	slow                  bool      // If set, reads are done with a 1 second sleep, and writes are done 1 byte at a time, to keep spammers busy.
 	lastlog               time.Time // Used for printing the delta time since the previous logging for this connection.
 	submission            bool      // ../rfc/6409:19 applies
@@ -339,7 +339,7 @@ type rcptAccount struct {
 }
 
 func isClosed(err error) bool {
-	return errors.Is(err, errIO) || moxio.IsClosed(err)
+	return errors.Is(err, errIO) || beaconio.IsClosed(err)
 }
 
 // completely reset connection state as if greeting has just been sent.
@@ -434,7 +434,7 @@ func (c *conn) Write(buf []byte) (int, error) {
 		n += nn
 		buf = buf[chunk:]
 		if len(buf) > 0 && badClientDelay > 0 {
-			mox.Sleep(mox.Context, badClientDelay)
+			beacon.Sleep(beacon.Context, badClientDelay)
 
 			// Make sure we don't take too long, otherwise the remote SMTP client may close the
 			// connection.
@@ -450,7 +450,7 @@ func (c *conn) Write(buf []byte) (int, error) {
 // connection command loop.
 func (c *conn) Read(buf []byte) (int, error) {
 	if c.slow && badClientDelay > 0 {
-		mox.Sleep(mox.Context, badClientDelay)
+		beacon.Sleep(beacon.Context, badClientDelay)
 	}
 
 	// todo future: make deadline configurable for callers, and through config file? ../rfc/5321:3610 ../rfc/6409:492
@@ -468,11 +468,11 @@ func (c *conn) Read(buf []byte) (int, error) {
 
 // Cache of line buffers for reading commands.
 // Filled on demand.
-var bufpool = moxio.NewBufpool(8, 2*1024)
+var bufpool = beaconio.NewBufpool(8, 2*1024)
 
 func (c *conn) readline() string {
 	line, err := bufpool.Readline(c.log, c.r)
-	if err != nil && errors.Is(err, moxio.ErrLineTooLong) {
+	if err != nil && errors.Is(err, beaconio.ErrLineTooLong) {
 		c.writecodeline(smtp.C500BadSyntax, smtp.SeProto5Other0, "line too long, smtp max is 512, we reached 2048", nil)
 		panic(fmt.Errorf("%s (%w)", err, errIO))
 	} else if err != nil {
@@ -596,8 +596,8 @@ func serve(listenerName string, cid int64, hostname dns.Domain, tlsConfig *tls.C
 		}
 		return l
 	})
-	c.tr = moxio.NewTraceReader(c.log, "RC: ", c)
-	c.tw = moxio.NewTraceWriter(c.log, "LS: ", c)
+	c.tr = beaconio.NewTraceReader(c.log, "RC: ", c)
+	c.tw = beaconio.NewTraceWriter(c.log, "LS: ", c)
 	c.r = bufio.NewReader(c.tr)
 	c.w = bufio.NewWriter(c.tw)
 
@@ -632,7 +632,7 @@ func serve(listenerName string, cid int64, hostname dns.Domain, tlsConfig *tls.C
 	}()
 
 	select {
-	case <-mox.Shutdown.Done():
+	case <-beacon.Shutdown.Done():
 		// ../rfc/5321:2811 ../rfc/5321:1666 ../rfc/3463:420
 		c.writecodeline(smtp.C421ServiceUnavail, smtp.SeSys3NotAccepting2, "shutting down", nil)
 		return
@@ -645,7 +645,7 @@ func serve(listenerName string, cid int64, hostname dns.Domain, tlsConfig *tls.C
 	}
 
 	// If remote IP/network resulted in too many authentication failures, refuse to serve.
-	if submission && !mox.LimiterFailedAuth.CanAdd(c.remoteIP, time.Now(), 1) {
+	if submission && !beacon.LimiterFailedAuth.CanAdd(c.remoteIP, time.Now(), 1) {
 		metrics.AuthenticationRatelimitedInc("submission")
 		c.log.Debug("refusing connection due to many auth failures", slog.Any("remoteip", c.remoteIP))
 		c.writecodeline(smtp.C421ServiceUnavail, smtp.SePol7Other0, "too many auth failures", nil)
@@ -661,15 +661,15 @@ func serve(listenerName string, cid int64, hostname dns.Domain, tlsConfig *tls.C
 
 	// We register and unregister the original connection, in case c.conn is replaced
 	// with a TLS connection later on.
-	mox.Connections.Register(nc, "smtp", listenerName)
-	defer mox.Connections.Unregister(nc)
+	beacon.Connections.Register(nc, "smtp", listenerName)
+	defer beacon.Connections.Unregister(nc)
 
 	// ../rfc/5321:964 ../rfc/5321:4294 about announcing software and version
 	// Syntax: ../rfc/5321:2586
 	// We include the string ESMTP. https://cr.yp.to/smtp/greeting.html recommends it.
 	// Should not be too relevant nowadays, but does not hurt and default blackbox
 	// exporter SMTP health check expects it.
-	c.writelinef("%d %s ESMTP mox %s", smtp.C220ServiceReady, c.hostname.ASCII, moxvar.Version)
+	c.writelinef("%d %s ESMTP beacon %s", smtp.C220ServiceReady, c.hostname.ASCII, beaconvar.Version)
 
 	for {
 		command(c)
@@ -720,7 +720,7 @@ func command(c *conn) {
 
 		var serr smtpError
 		if errors.As(err, &serr) {
-			c.writecodeline(serr.code, serr.secode, fmt.Sprintf("%s (%s)", serr.errmsg, mox.ReceivedID(c.cid)), serr.err)
+			c.writecodeline(serr.code, serr.secode, fmt.Sprintf("%s (%s)", serr.errmsg, beacon.ReceivedID(c.cid)), serr.err)
 			if serr.printStack {
 				debug.PrintStack()
 			}
@@ -745,7 +745,7 @@ func command(c *conn) {
 	// todo future: should we return an error for lines that are too long? perhaps for submission or in a pedantic mode. we would have to take extensions for MAIL into account. ../rfc/5321:3500 ../rfc/5321:3552
 
 	select {
-	case <-mox.Shutdown.Done():
+	case <-beacon.Shutdown.Done():
 		// ../rfc/5321:2811 ../rfc/5321:1666 ../rfc/3463:420
 		c.writecodeline(smtp.C421ServiceUnavail, smtp.SeSys3NotAccepting2, "shutting down", nil)
 		panic(errIO)
@@ -799,7 +799,7 @@ func (c *conn) xneedTLSForDelivery(rcpt smtp.Path) {
 }
 
 func isTLSReportRecipient(rcpt smtp.Path) bool {
-	_, _, dest, err := mox.FindAccount(rcpt.Localpart, rcpt.IPDomain.Domain, false)
+	_, _, dest, err := beacon.FindAccount(rcpt.Localpart, rcpt.IPDomain.Domain, false)
 	return err == nil && (dest.HostTLSReports || dest.DomainTLSReports)
 }
 
@@ -814,7 +814,7 @@ func (c *conn) cmdEhlo(p *parser) {
 // ../rfc/5321:1783
 func (c *conn) cmdHello(p *parser, ehlo bool) {
 	var remote dns.IPDomain
-	if c.submission && !mox.Pedantic {
+	if c.submission && !beacon.Pedantic {
 		// Mail clients regularly put bogus information in the hostname/ip. For submission,
 		// the value is of no use, so there is not much point in annoying the user with
 		// errors they cannot fix themselves. Except when in pedantic mode.
@@ -827,7 +827,7 @@ func (c *conn) cmdHello(p *parser, ehlo bool) {
 			remote = dns.IPDomain{Domain: p.xdomain()}
 
 			// Verify a remote domain name has an A or AAAA record, CNAME not allowed. ../rfc/5321:722
-			cidctx := context.WithValue(mox.Context, mlog.CidKey, c.cid)
+			cidctx := context.WithValue(beacon.Context, mlog.CidKey, c.cid)
 			ctx, cancel := context.WithTimeout(cidctx, time.Minute)
 			_, _, err := c.resolver.LookupIPAddr(ctx, remote.Domain.ASCII+".")
 			cancel()
@@ -905,16 +905,16 @@ func (c *conn) cmdStarttls(p *parser) {
 	// handshake.
 	conn := c.conn
 	if n := c.r.Buffered(); n > 0 {
-		conn = &moxio.PrefixConn{
+		conn = &beaconio.PrefixConn{
 			PrefixReader: io.LimitReader(c.r, int64(n)),
 			Conn:         conn,
 		}
 	}
 
 	// We add the cid to the output, to help debugging in case of a failing TLS connection.
-	c.writecodeline(smtp.C220ServiceReady, smtp.SeOther00, "go! ("+mox.ReceivedID(c.cid)+")", nil)
+	c.writecodeline(smtp.C220ServiceReady, smtp.SeOther00, "go! ("+beacon.ReceivedID(c.cid)+")", nil)
 	tlsConn := tls.Server(conn, c.tlsConfig)
-	cidctx := context.WithValue(mox.Context, mlog.CidKey, c.cid)
+	cidctx := context.WithValue(beacon.Context, mlog.CidKey, c.cid)
 	ctx, cancel := context.WithTimeout(cidctx, time.Minute)
 	defer cancel()
 	c.log.Debug("starting tls server handshake")
@@ -922,11 +922,11 @@ func (c *conn) cmdStarttls(p *parser) {
 		panic(fmt.Errorf("starttls handshake: %s (%w)", err, errIO))
 	}
 	cancel()
-	tlsversion, ciphersuite := moxio.TLSInfo(tlsConn)
+	tlsversion, ciphersuite := beaconio.TLSInfo(tlsConn)
 	c.log.Debug("tls server handshake done", slog.String("tls", tlsversion), slog.String("ciphersuite", ciphersuite))
 	c.conn = tlsConn
-	c.tr = moxio.NewTraceReader(c.log, "RC: ", c)
-	c.tw = moxio.NewTraceWriter(c.log, "LS: ", c)
+	c.tr = beaconio.NewTraceReader(c.log, "RC: ", c)
+	c.tw = beaconio.NewTraceWriter(c.log, "LS: ", c)
 	c.r = bufio.NewReader(c.tr)
 	c.w = bufio.NewWriter(c.tw)
 
@@ -957,7 +957,7 @@ func (c *conn) cmdAuth(p *parser) {
 	// ../rfc/4954:770
 	if c.authFailed > 3 && authFailDelay > 0 {
 		// ../rfc/4954:770
-		mox.Sleep(mox.Context, time.Duration(c.authFailed-3)*authFailDelay)
+		beacon.Sleep(beacon.Context, time.Duration(c.authFailed-3)*authFailDelay)
 	}
 	c.authFailed++ // Compensated on success.
 	defer func() {
@@ -974,9 +974,9 @@ func (c *conn) cmdAuth(p *parser) {
 		metrics.AuthenticationInc("submission", authVariant, authResult)
 		switch authResult {
 		case "ok":
-			mox.LimiterFailedAuth.Reset(c.remoteIP, time.Now())
+			beacon.LimiterFailedAuth.Reset(c.remoteIP, time.Now())
 		default:
-			mox.LimiterFailedAuth.Add(c.remoteIP, time.Now(), 1)
+			beacon.LimiterFailedAuth.Add(c.remoteIP, time.Now(), 1)
 		}
 	}()
 
@@ -997,7 +997,7 @@ func (c *conn) cmdAuth(p *parser) {
 			}
 		} else {
 			p.xspace()
-			if !mox.Pedantic {
+			if !beacon.Pedantic {
 				// Windows Mail 16005.14326.21606.0 sends two spaces between "AUTH PLAIN" and the
 				// base64 data.
 				for p.space() {
@@ -1129,7 +1129,7 @@ func (c *conn) cmdAuth(p *parser) {
 		p.xempty()
 
 		// ../rfc/2195:82
-		chal := fmt.Sprintf("<%d.%d@%s>", uint64(mox.CryptoRandInt()), time.Now().UnixNano(), mox.Conf.Static.HostnameDomain.ASCII)
+		chal := fmt.Sprintf("<%d.%d@%s>", uint64(beacon.CryptoRandInt()), time.Now().UnixNano(), beacon.Conf.Static.HostnameDomain.ASCII)
 		c.writelinef("%d %s", smtp.C334ContinueAuth, base64.StdEncoding.EncodeToString([]byte(chal)))
 
 		resp := xreadContinuation()
@@ -1335,7 +1335,7 @@ func (c *conn) cmdMail(p *parser) {
 	// note: no space allowed after colon. ../rfc/5321:1093
 	// Microsoft Outlook 365 Apps for Enterprise sends it with submission. For delivery
 	// it is mostly used by spammers, but has been seen with legitimate senders too.
-	if !mox.Pedantic {
+	if !beacon.Pedantic {
 		p.space()
 	}
 	rawRevPath := p.xrawReversePath()
@@ -1422,7 +1422,7 @@ func (c *conn) cmdMail(p *parser) {
 		if rpath.IsZero() {
 			return true
 		}
-		accName, _, _, err := mox.FindAccount(rpath.Localpart, rpath.IPDomain.Domain, false)
+		accName, _, _, err := beacon.FindAccount(rpath.Localpart, rpath.IPDomain.Domain, false)
 		return err == nil && accName == c.account.Name
 	}
 
@@ -1430,7 +1430,7 @@ func (c *conn) cmdMail(p *parser) {
 		// If rpath domain has null MX record or is otherwise not accepting email, reject.
 		// ../rfc/7505:181
 		// ../rfc/5321:4045
-		cidctx := context.WithValue(mox.Context, mlog.CidKey, c.cid)
+		cidctx := context.WithValue(beacon.Context, mlog.CidKey, c.cid)
 		ctx, cancel := context.WithTimeout(cidctx, time.Minute)
 		valid, err := checkMXRecords(ctx, c.resolver, rpath.IPDomain.Domain)
 		cancel()
@@ -1476,7 +1476,7 @@ func (c *conn) cmdRcpt(p *parser) {
 	// note: no space allowed after colon. ../rfc/5321:1093
 	// Microsoft Outlook 365 Apps for Enterprise sends it with submission. For delivery
 	// it is mostly used by spammers, but has been seen with legitimate senders too.
-	if !mox.Pedantic {
+	if !beacon.Pedantic {
 		p.space()
 	}
 	var fpath smtp.Path
@@ -1538,7 +1538,7 @@ func (c *conn) cmdRcpt(p *parser) {
 				LocalIP:           c.localIP,
 				LocalHostname:     c.hostname,
 			}
-			cidctx := context.WithValue(mox.Context, mlog.CidKey, c.cid)
+			cidctx := context.WithValue(beacon.Context, mlog.CidKey, c.cid)
 			spfctx, spfcancel := context.WithTimeout(cidctx, time.Minute)
 			defer spfcancel()
 			receivedSPF, _, _, _, err := spf.Verify(spfctx, c.log.Logger, c.resolver, spfArgs)
@@ -1560,25 +1560,25 @@ func (c *conn) cmdRcpt(p *parser) {
 
 		// If account or destination doesn't exist, it will be handled during delivery. For
 		// submissions, which is the common case, we'll deliver to the logged in user,
-		// which is typically the mox user.
-		acc, _ := mox.Conf.Account("mox")
-		dest := acc.Destinations["mox@localhost"]
-		c.recipients = append(c.recipients, rcptAccount{fpath, true, "mox", dest, "mox@localhost"})
+		// which is typically the beacon user.
+		acc, _ := beacon.Conf.Account("beacon")
+		dest := acc.Destinations["beacon@localhost"]
+		c.recipients = append(c.recipients, rcptAccount{fpath, true, "beacon", dest, "beacon@localhost"})
 	} else if len(fpath.IPDomain.IP) > 0 {
 		if !c.submission {
 			xsmtpUserErrorf(smtp.C550MailboxUnavail, smtp.SeAddr1UnknownDestMailbox1, "not accepting email for ip")
 		}
 		c.recipients = append(c.recipients, rcptAccount{fpath, false, "", config.Destination{}, ""})
-	} else if accountName, canonical, addr, err := mox.FindAccount(fpath.Localpart, fpath.IPDomain.Domain, true); err == nil {
+	} else if accountName, canonical, addr, err := beacon.FindAccount(fpath.Localpart, fpath.IPDomain.Domain, true); err == nil {
 		// note: a bare postmaster, without domain, is handled by FindAccount. ../rfc/5321:735
 		c.recipients = append(c.recipients, rcptAccount{fpath, true, accountName, addr, canonical})
-	} else if errors.Is(err, mox.ErrDomainNotFound) {
+	} else if errors.Is(err, beacon.ErrDomainNotFound) {
 		if !c.submission {
 			xsmtpUserErrorf(smtp.C550MailboxUnavail, smtp.SeAddr1UnknownDestMailbox1, "not accepting email for domain")
 		}
 		// We'll be delivering this email.
 		c.recipients = append(c.recipients, rcptAccount{fpath, false, "", config.Destination{}, ""})
-	} else if errors.Is(err, mox.ErrAccountNotFound) {
+	} else if errors.Is(err, beacon.ErrAccountNotFound) {
 		if c.submission {
 			// For submission, we're transparent about which user exists. Should be fine for the typical small-scale deploy.
 			// ../rfc/5321:1071
@@ -1614,7 +1614,7 @@ func (c *conn) cmdData(p *parser) {
 	// todo future: we could start a reader for a single line. we would then create a context that would be canceled on i/o errors.
 
 	// Entire delivery should be done within 30 minutes, or we abort.
-	cidctx := context.WithValue(mox.Context, mlog.CidKey, c.cid)
+	cidctx := context.WithValue(beacon.Context, mlog.CidKey, c.cid)
 	cmdctx, cmdcancel := context.WithTimeout(cidctx, 30*time.Minute)
 	defer cmdcancel()
 	// Deadline is taken into account by Read and Write.
@@ -1646,12 +1646,12 @@ func (c *conn) cmdData(p *parser) {
 			if n < config.DefaultMaxMsgSize {
 				ecode = smtp.SeMailbox2MsgLimitExceeded3
 			}
-			c.writecodeline(smtp.C451LocalErr, ecode, fmt.Sprintf("error copying data to file (%s)", mox.ReceivedID(c.cid)), err)
+			c.writecodeline(smtp.C451LocalErr, ecode, fmt.Sprintf("error copying data to file (%s)", beacon.ReceivedID(c.cid)), err)
 			panic(fmt.Errorf("remote sent too much DATA: %w", errIO))
 		}
 
 		if errors.Is(err, smtp.ErrCRLF) {
-			c.writecodeline(smtp.C500BadSyntax, smtp.SeProto5Syntax2, fmt.Sprintf("invalid bare \\r or \\n, may be smtp smuggling (%s)", mox.ReceivedID(c.cid)), err)
+			c.writecodeline(smtp.C500BadSyntax, smtp.SeProto5Syntax2, fmt.Sprintf("invalid bare \\r or \\n, may be smtp smuggling (%s)", beacon.ReceivedID(c.cid)), err)
 			return
 		}
 
@@ -1661,7 +1661,7 @@ func (c *conn) cmdData(p *parser) {
 		// available and our write blocks us from reading remaining data, leading to
 		// deadlock. We have a timeout on our connection writes though, so worst case we'll
 		// abort the connection due to expiration.
-		c.writecodeline(smtp.C451LocalErr, smtp.SeSys3Other0, fmt.Sprintf("error copying data to file (%s)", mox.ReceivedID(c.cid)), err)
+		c.writecodeline(smtp.C451LocalErr, smtp.SeSys3Other0, fmt.Sprintf("error copying data to file (%s)", beacon.ReceivedID(c.cid)), err)
 		io.Copy(io.Discard, dr)
 		return
 	}
@@ -1675,13 +1675,13 @@ func (c *conn) cmdData(p *parser) {
 		}
 		// Check only for pedantic mode because ios mail will attempt to send smtputf8 with
 		// non-ascii in message from localpart without using 8bitmime.
-		if mox.Pedantic && msgWriter.Has8bit && !c.has8bitmime {
+		if beacon.Pedantic && msgWriter.Has8bit && !c.has8bitmime {
 			// ../rfc/5321:906
 			xsmtpUserErrorf(smtp.C500BadSyntax, smtp.SeMsg6Other0, "message with non-us-ascii requires 8bitmime extension")
 		}
 	}
 
-	if Localserve && mox.Pedantic {
+	if Localserve && beacon.Pedantic {
 		// Require that message can be parsed fully.
 		p, err := message.Parse(c.log.Logger, false, dataFile)
 		if err == nil {
@@ -1702,7 +1702,7 @@ func (c *conn) cmdData(p *parser) {
 	if c.submission {
 		// Hide internal hosts.
 		// todo future: make this a config option, where admins specify ip ranges that they don't want exposed. also see ../rfc/5321:4321
-		recvFrom = message.HeaderCommentDomain(mox.Conf.Static.HostnameDomain, c.smtputf8)
+		recvFrom = message.HeaderCommentDomain(beacon.Conf.Static.HostnameDomain, c.smtputf8)
 	} else {
 		if len(c.hello.IP) > 0 {
 			recvFrom = smtp.AddressLiteral(c.hello.IP)
@@ -1736,11 +1736,11 @@ func (c *conn) cmdData(p *parser) {
 			recvFrom += " (" + c.hello.Domain.ASCII + ")"
 		}
 	}
-	recvBy := mox.Conf.Static.HostnameDomain.XName(c.smtputf8)
+	recvBy := beacon.Conf.Static.HostnameDomain.XName(c.smtputf8)
 	recvBy += " (" + smtp.AddressLiteral(c.localIP) + ")" // todo: hide ip if internal?
-	if c.smtputf8 && mox.Conf.Static.HostnameDomain.Unicode != "" {
+	if c.smtputf8 && beacon.Conf.Static.HostnameDomain.Unicode != "" {
 		// This syntax is part of "VIA".
-		recvBy += " (" + mox.Conf.Static.HostnameDomain.ASCII + ")"
+		recvBy += " (" + beacon.Conf.Static.HostnameDomain.ASCII + ")"
 	}
 
 	// ../rfc/3848:34 ../rfc/6531:791
@@ -1770,10 +1770,10 @@ func (c *conn) cmdData(p *parser) {
 			// Comment is actually part of ID ABNF rule. ../rfc/5321:3336
 			withComment = " (requiretls)"
 		}
-		recvHdr.Add(" ", "Received:", "from", recvFrom, "by", recvBy, "via", "tcp", "with", with+withComment, "id", mox.ReceivedID(c.cid)) // ../rfc/5321:3158
+		recvHdr.Add(" ", "Received:", "from", recvFrom, "by", recvBy, "via", "tcp", "with", with+withComment, "id", beacon.ReceivedID(c.cid)) // ../rfc/5321:3158
 		if c.tls {
 			tlsConn := c.conn.(*tls.Conn)
-			tlsComment := mox.TLSReceivedComment(c.log, tlsConn.ConnectionState())
+			tlsComment := beacon.TLSReceivedComment(c.log, tlsConn.ConnectionState())
 			recvHdr.Add(" ", tlsComment...)
 		}
 		recvHdr.Add(" ", "for", "<"+rcptTo+">;", time.Now().Format(message.RFC5322Z))
@@ -1823,11 +1823,11 @@ func (c *conn) submit(ctx context.Context, recvHdrFor func(string) string, msgWr
 		c.log.Infox("parsing message From address", err, slog.String("user", c.username))
 		xsmtpUserErrorf(smtp.C550MailboxUnavail, smtp.SeMsg6Other0, "cannot parse header or From address: %v", err)
 	}
-	accName, _, _, err := mox.FindAccount(msgFrom.Localpart, msgFrom.Domain, true)
+	accName, _, _, err := beacon.FindAccount(msgFrom.Localpart, msgFrom.Domain, true)
 	if err != nil || accName != c.account.Name {
 		// ../rfc/6409:522
 		if err == nil {
-			err = mox.ErrAccountNotFound
+			err = beacon.ErrAccountNotFound
 		}
 		metricSubmission.WithLabelValues("badfrom").Inc()
 		c.log.Infox("verifying message From address", err, slog.String("user", c.username), slog.Any("msgfrom", msgFrom))
@@ -1845,7 +1845,7 @@ func (c *conn) submit(ctx context.Context, recvHdrFor func(string) string, msgWr
 	// Outgoing messages should not have a Return-Path header. The final receiving mail
 	// server will add it.
 	// ../rfc/5321:3233
-	if mox.Pedantic && header.Values("Return-Path") != nil {
+	if beacon.Pedantic && header.Values("Return-Path") != nil {
 		metricSubmission.WithLabelValues("badheader").Inc()
 		xsmtpUserErrorf(smtp.C550MailboxUnavail, smtp.SeMsg6Other0, "message should not have Return-Path header")
 	}
@@ -1854,7 +1854,7 @@ func (c *conn) submit(ctx context.Context, recvHdrFor func(string) string, msgWr
 	// ../rfc/5321:4131 ../rfc/6409:751
 	messageID := header.Get("Message-Id")
 	if messageID == "" {
-		messageID = mox.MessageIDGen(c.smtputf8)
+		messageID = beacon.MessageIDGen(c.smtputf8)
 		msgPrefix = append(msgPrefix, fmt.Sprintf("Message-Id: <%s>\r\n", messageID)...)
 	}
 
@@ -1885,15 +1885,15 @@ func (c *conn) submit(ctx context.Context, recvHdrFor func(string) string, msgWr
 	// todo future: in a pedantic mode, we can parse the headers, and return an error if rcpt is only in To or Cc header, and not in the non-empty Bcc header. indicates a client that doesn't blind those bcc's.
 
 	// Add DKIM signatures.
-	confDom, ok := mox.Conf.Domain(msgFrom.Domain)
+	confDom, ok := beacon.Conf.Domain(msgFrom.Domain)
 	if !ok {
 		c.log.Error("domain disappeared", slog.Any("domain", msgFrom.Domain))
 		xsmtpServerErrorf(codes{smtp.C451LocalErr, smtp.SeSys3Other0}, "internal error")
 	}
 
-	selectors := mox.DKIMSelectors(confDom.DKIM)
+	selectors := beacon.DKIMSelectors(confDom.DKIM)
 	if len(selectors) > 0 {
-		if canonical, err := mox.CanonicalLocalpart(msgFrom.Localpart, confDom); err != nil {
+		if canonical, err := beacon.CanonicalLocalpart(msgFrom.Localpart, confDom); err != nil {
 			c.log.Errorx("determining canonical localpart for dkim signing", err, slog.Any("localpart", msgFrom.Localpart))
 		} else if dkimHeaders, err := dkim.Sign(ctx, c.log.Logger, canonical, msgFrom.Domain, selectors, c.smtputf8, store.FileMsgReader(msgPrefix, dataFile)); err != nil {
 			c.log.Errorx("dkim sign for domain", err, slog.Any("domain", msgFrom.Domain))
@@ -1904,8 +1904,8 @@ func (c *conn) submit(ctx context.Context, recvHdrFor func(string) string, msgWr
 	}
 
 	authResults := message.AuthResults{
-		Hostname: mox.Conf.Static.HostnameDomain.XName(c.smtputf8),
-		Comment:  mox.Conf.Static.HostnameDomain.ASCIIExtra(c.smtputf8),
+		Hostname: beacon.Conf.Static.HostnameDomain.XName(c.smtputf8),
+		Comment:  beacon.Conf.Static.HostnameDomain.ASCIIExtra(c.smtputf8),
 		Methods: []message.AuthMethod{
 			{
 				Method: "auth",
@@ -1920,13 +1920,13 @@ func (c *conn) submit(ctx context.Context, recvHdrFor func(string) string, msgWr
 
 	// We always deliver through the queue. It would be more efficient to deliver
 	// directly, but we don't want to circumvent all the anti-spam measures. Accounts
-	// on a single mox instance should be allowed to block each other.
+	// on a single beacon instance should be allowed to block each other.
 	for _, rcptAcc := range c.recipients {
 		if Localserve {
 			code, timeout := localserveNeedsError(rcptAcc.rcptTo.Localpart)
 			if timeout {
 				c.log.Info("timing out submission due to special localpart")
-				mox.Sleep(mox.Context, time.Hour)
+				beacon.Sleep(beacon.Context, time.Hour)
 				xsmtpServerErrorf(codes{smtp.C451LocalErr, smtp.SeSys3Other0}, "timing out submission due to special localpart")
 			} else if code != 0 {
 				c.log.Info("failure due to special localpart", slog.Int("code", code))
@@ -2003,7 +2003,7 @@ func (c *conn) xlocalserveError(lp smtp.Localpart) {
 	code, timeout := localserveNeedsError(lp)
 	if timeout {
 		c.log.Info("timing out due to special localpart")
-		mox.Sleep(mox.Context, time.Hour)
+		beacon.Sleep(beacon.Context, time.Hour)
 		xsmtpServerErrorf(codes{smtp.C451LocalErr, smtp.SeSys3Other0}, "timing out command due to special localpart")
 	} else if code != 0 {
 		c.log.Info("failure due to special localpart", slog.Int("code", code))
@@ -2039,7 +2039,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 
 	// We'll be building up an Authentication-Results header.
 	authResults := message.AuthResults{
-		Hostname: mox.Conf.Static.HostnameDomain.XName(c.smtputf8),
+		Hostname: beacon.Conf.Static.HostnameDomain.XName(c.smtputf8),
 	}
 
 	commentAuthentic := func(v bool) string {
@@ -2141,7 +2141,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 		// Crude attempt to slow down someone trying to guess names. Would work better
 		// with connection rate limiter.
 		if unknownRecipientsDelay > 0 {
-			mox.Sleep(ctx, unknownRecipientsDelay)
+			beacon.Sleep(ctx, unknownRecipientsDelay)
 		}
 
 		// todo future: if remote does not look like a properly configured mail system, respond with generic 451 error? to prevent any random internet system from discovering accounts. we could give proper response if spf for ehlo or mailfrom passes.
@@ -2564,16 +2564,16 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 		rcptAuthResults.Methods = append(rcptAuthResults.Methods, rcptDMARCMethod)
 
 		// Prepend reason as message header, for easy display in mail clients.
-		var xmox string
+		var xbeacon string
 		if a.reason != "" {
-			xmox = "X-Mox-Reason: " + a.reason + "\r\n"
+			xbeacon = "X-Mox-Reason: " + a.reason + "\r\n"
 		}
-		xmox += a.headers
+		xbeacon += a.headers
 
 		// ../rfc/5321:3204
 		// Received-SPF header goes before Received. ../rfc/7208:2038
 		m.MsgPrefix = []byte(
-			xmox +
+			xbeacon +
 				"Delivered-To: " + rcptAcc.rcptTo.XString(c.smtputf8) + "\r\n" + // ../rfc/9228:274
 				"Return-Path: <" + c.mailFrom.String() + ">\r\n" + // ../rfc/5321:3300
 				rcptAuthResults.Header() +
@@ -2589,7 +2589,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 		// the analysis, we will report on rejects because of DMARC, because it could be
 		// valuable feedback about forwarded or mailing list messages.
 		// ../rfc/7489:1492
-		if !mox.Conf.Static.NoOutgoingDMARCReports && dmarcResult.Record != nil && len(dmarcResult.Record.AggregateReportAddresses) > 0 && (a.accept && !m.IsReject || a.reason == reasonDMARCPolicy) {
+		if !beacon.Conf.Static.NoOutgoingDMARCReports && dmarcResult.Record != nil && len(dmarcResult.Record.AggregateReportAddresses) > 0 && (a.accept && !m.IsReject || a.reason == reasonDMARCPolicy) {
 			// Disposition holds our decision on whether to accept the message. Not what the
 			// DMARC evaluation resulted in. We can override, e.g. because of mailing lists,
 			// forwarding, or local policy.
@@ -2785,7 +2785,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 		// connections busy.
 		if delayFirstTime && !m.IsForward && a.reason == reasonNoBadSignals && c.firstTimeSenderDelay > 0 {
 			log.Debug("delaying before delivering from sender without reputation", slog.Duration("delay", c.firstTimeSenderDelay))
-			mox.Sleep(mox.Context, c.firstTimeSenderDelay)
+			beacon.Sleep(beacon.Context, c.firstTimeSenderDelay)
 		}
 
 		// Gather the message-id before we deliver and the file may be consumed.
@@ -2803,7 +2803,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 			code, timeout := localserveNeedsError(rcptAcc.rcptTo.Localpart)
 			if timeout {
 				log.Info("timing out due to special localpart")
-				mox.Sleep(mox.Context, time.Hour)
+				beacon.Sleep(beacon.Context, time.Hour)
 				xsmtpServerErrorf(codes{smtp.C451LocalErr, smtp.SeOther00}, "timing out delivery due to special localpart")
 			} else if code != 0 {
 				log.Info("failure due to special localpart", slog.Int("code", code))
@@ -2881,11 +2881,11 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 			From:       smtp.Path{Localpart: "postmaster", IPDomain: deliverErrors[0].rcptTo.IPDomain},
 			To:         *c.mailFrom,
 			Subject:    "mail delivery failure",
-			MessageID:  mox.MessageIDGen(false),
+			MessageID:  beacon.MessageIDGen(false),
 			References: messageID,
 
 			// Per-message details.
-			ReportingMTA:    mox.Conf.Static.HostnameDomain.ASCII,
+			ReportingMTA:    beacon.Conf.Static.HostnameDomain.ASCII,
 			ReceivedFromMTA: smtp.Ehlo{Name: c.hello, ConnIP: c.remoteIP},
 			ArrivalDate:     now,
 		}
@@ -2909,7 +2909,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 			dsnMsg.Recipients = append(dsnMsg.Recipients, rcpt)
 		}
 
-		header, err := message.ReadHeaders(bufio.NewReader(&moxio.AtReader{R: dataFile}))
+		header, err := message.ReadHeaders(bufio.NewReader(&beaconio.AtReader{R: dataFile}))
 		if err != nil {
 			c.log.Errorx("reading headers of incoming message for dsn, continuing dsn without headers", err)
 		}
@@ -2934,7 +2934,7 @@ func (c *conn) deliver(ctx context.Context, recvHdrFor func(string) string, msgW
 // system full" if the error indicates no disk space is available.
 func errCodes(code int, ecode string, err error) codes {
 	switch {
-	case moxio.IsStorageSpace(err):
+	case beaconio.IsStorageSpace(err):
 		switch ecode {
 		case smtp.SeMailbox2Other0:
 			if code == smtp.C451LocalErr {

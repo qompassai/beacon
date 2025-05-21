@@ -3,7 +3,7 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestCreate(t *testing.T) {
@@ -13,8 +13,8 @@ func TestCreate(t *testing.T) {
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 
 	tc.transactf("no", "create inbox") // Already exists and not allowed. ../rfc/9051:1913
 	tc.transactf("no", "create Inbox") // Idem.

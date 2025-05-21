@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestSelect(t *testing.T) {
@@ -21,7 +21,7 @@ func testSelectExamine(t *testing.T, examine bool) {
 	tc := start(t)
 	defer tc.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 
 	cmd := "select"
 	okcode := "READ-WRITE"

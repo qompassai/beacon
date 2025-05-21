@@ -15,9 +15,9 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
 )
 
 // Assign a new/incoming message to a thread. Message does not yet have an ID. If
@@ -132,7 +132,7 @@ func (a *Account) ResetThreading(ctx context.Context, log mlog.Log, batchSize in
 	for {
 		n := 0
 
-		prepareMessages := func(in, out chan moxio.Work[Message, Message]) {
+		prepareMessages := func(in, out chan beaconio.Work[Message, Message]) {
 			for {
 				w, ok := <-in
 				if !ok {
@@ -180,7 +180,7 @@ func (a *Account) ResetThreading(ctx context.Context, log mlog.Log, batchSize in
 
 			// JSON parsing is relatively heavy, we benefit from multiple goroutines.
 			procs := runtime.GOMAXPROCS(0)
-			wq := moxio.NewWorkQueue[Message, Message](procs, 2*procs, prepareMessages, processMessage)
+			wq := beaconio.NewWorkQueue[Message, Message](procs, 2*procs, prepareMessages, processMessage)
 
 			q := bstore.QueryTx[Message](tx)
 			q.FilterEqual("Expunged", false)
@@ -397,7 +397,7 @@ func (a *Account) AssignThreads(ctx context.Context, log mlog.Log, txOpt *bstore
 	// Worker goroutine function. We start with a reasonably large buffer for reading
 	// the header into. And we have scratch space to copy the needed headers into. That
 	// means we normally won't allocate any more buffers.
-	prepareMessages := func(in, out chan moxio.Work[Message, threadPrep]) {
+	prepareMessages := func(in, out chan beaconio.Work[Message, threadPrep]) {
 		headerbuf := make([]byte, 8*1024)
 		scratch := make([]byte, 4*1024)
 		for {
@@ -488,7 +488,7 @@ func (a *Account) AssignThreads(ctx context.Context, log mlog.Log, txOpt *bstore
 
 		// Use multiple worker goroutines to read parse headers from on-disk messages.
 		procs := runtime.GOMAXPROCS(0)
-		wq := moxio.NewWorkQueue[Message, threadPrep](2*procs, 4*procs, prepareMessages, processMessage)
+		wq := beaconio.NewWorkQueue[Message, threadPrep](2*procs, 4*procs, prepareMessages, processMessage)
 
 		// We assign threads in order by ID, so messages delivered in between our
 		// transaction will get assigned threads too: they'll have the highest id's.

@@ -31,20 +31,20 @@ import (
 	"github.com/mjl-/sherpadoc"
 	"github.com/mjl-/sherpaprom"
 
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/webauth"
 )
 
 //go:embed api.json
@@ -69,11 +69,11 @@ var webmailDoc = mustParseAPI("webmail", webmailapiJSON)
 var sherpaHandlerOpts *sherpa.HandlerOpts
 
 func makeSherpaHandler(maxMessageSize int64, cookiePath string, isForwarded bool) (http.Handler, error) {
-	return sherpa.NewHandler("/api/", moxvar.Version, Webmail{maxMessageSize, cookiePath, isForwarded}, &webmailDoc, sherpaHandlerOpts)
+	return sherpa.NewHandler("/api/", beaconvar.Version, Webmail{maxMessageSize, cookiePath, isForwarded}, &webmailDoc, sherpaHandlerOpts)
 }
 
 func init() {
-	collector, err := sherpaprom.NewCollector("moxwebmail", nil)
+	collector, err := sherpaprom.NewCollector("beaconwebmail", nil)
 	if err != nil {
 		pkglog.Fatalx("creating sherpa prometheus collector", err)
 	}
@@ -334,11 +334,11 @@ func (w Webmail) MessageSubmit(ctx context.Context, m SubmitMessage) {
 	}
 
 	// Check if from address is allowed for account.
-	fromAccName, _, _, err := mox.FindAccount(fromAddr.Address.Localpart, fromAddr.Address.Domain, false)
+	fromAccName, _, _, err := beacon.FindAccount(fromAddr.Address.Localpart, fromAddr.Address.Domain, false)
 	if err == nil && fromAccName != reqInfo.AccountName {
-		err = mox.ErrAccountNotFound
+		err = beacon.ErrAccountNotFound
 	}
-	if err != nil && (errors.Is(err, mox.ErrAccountNotFound) || errors.Is(err, mox.ErrDomainNotFound)) {
+	if err != nil && (errors.Is(err, beacon.ErrAccountNotFound) || errors.Is(err, beacon.ErrDomainNotFound)) {
 		metricSubmission.WithLabelValues("badfrom").Inc()
 		xcheckuserf(ctx, errors.New("address not found"), "looking from address for account")
 	}
@@ -406,9 +406,9 @@ func (w Webmail) MessageSubmit(ctx context.Context, m SubmitMessage) {
 	// We don't have access to the local IP for adding.
 	// We cannot use VIA, because there is no registered method. We would like to use
 	// it to add the ascii domain name in case of smtputf8 and IDNA host name.
-	recvFrom := message.HeaderCommentDomain(mox.Conf.Static.HostnameDomain, smtputf8)
-	recvBy := mox.Conf.Static.HostnameDomain.XName(smtputf8)
-	recvID := mox.ReceivedID(mox.CidFromCtx(ctx))
+	recvFrom := message.HeaderCommentDomain(beacon.Conf.Static.HostnameDomain, smtputf8)
+	recvBy := beacon.Conf.Static.HostnameDomain.XName(smtputf8)
+	recvID := beacon.ReceivedID(beacon.CidFromCtx(ctx))
 	recvHdrFor := func(rcptTo string) string {
 		recvHdr := &message.HeaderWriter{}
 		// For additional Received-header clauses, see:
@@ -416,7 +416,7 @@ func (w Webmail) MessageSubmit(ctx context.Context, m SubmitMessage) {
 		// Note: we don't have "via" or "with", there is no registered for webmail.
 		recvHdr.Add(" ", "Received:", "from", recvFrom, "by", recvBy, "id", recvID) // ../rfc/5321:3158
 		if reqInfo.Request.TLS != nil {
-			recvHdr.Add(" ", mox.TLSReceivedComment(log, *reqInfo.Request.TLS)...)
+			recvHdr.Add(" ", beacon.TLSReceivedComment(log, *reqInfo.Request.TLS)...)
 		}
 		recvHdr.Add(" ", "for", "<"+rcptTo+">;", time.Now().Format(message.RFC5322Z))
 		return recvHdr.String()
@@ -433,7 +433,7 @@ func (w Webmail) MessageSubmit(ctx context.Context, m SubmitMessage) {
 		xc.Subject(m.Subject)
 	}
 
-	messageID := fmt.Sprintf("<%s>", mox.MessageIDGen(smtputf8))
+	messageID := fmt.Sprintf("<%s>", beacon.MessageIDGen(smtputf8))
 	xc.Header("Message-Id", messageID)
 	xc.Header("Date", time.Now().Format(message.RFC5322Z))
 	// Add In-Reply-To and References headers.
@@ -519,7 +519,7 @@ func (w Webmail) MessageSubmit(ctx context.Context, m SubmitMessage) {
 
 		xaddAttachment := func(ct, filename string, r io.Reader) {
 			ap := xaddPart(ct, filename)
-			wc := moxio.Base64Writer(ap)
+			wc := beaconio.Base64Writer(ap)
 			_, err := io.Copy(wc, r)
 			xcheckf(ctx, err, "adding attachment")
 			err = wc.Close()
@@ -611,8 +611,8 @@ func (w Webmail) MessageSubmit(ctx context.Context, m SubmitMessage) {
 	// Add DKIM-Signature headers.
 	var msgPrefix string
 	fd := fromAddr.Address.Domain
-	confDom, _ := mox.Conf.Domain(fd)
-	selectors := mox.DKIMSelectors(confDom.DKIM)
+	confDom, _ := beacon.Conf.Domain(fd)
+	selectors := beacon.DKIMSelectors(confDom.DKIM)
 	if len(selectors) > 0 {
 		dkimHeaders, err := dkim.Sign(ctx, log.Logger, fromAddr.Address.Localpart, fd, selectors, smtputf8, dataFile)
 		if err != nil {

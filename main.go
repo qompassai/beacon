@@ -41,34 +41,34 @@ import (
 	"github.com/mjl-/sconf"
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dane"
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/spf"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
-	"github.com/mjl-/mox/updates"
-	"github.com/mjl-/mox/webadmin"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dane"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/spf"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
+	"github.com/qompassai/beacon/updates"
+	"github.com/qompassai/beacon/webadmin"
 )
 
 var (
-	changelogDomain = "xmox.nl"
-	changelogURL    = "https://updates.xmox.nl/changelog"
+	changelogDomain = "xbeacon.nl"
+	changelogURL    = "https://updates.xbeacon.nl/changelog"
 	changelogPubKey = base64Decode("sPNiTDQzvb4FrytNEiebJhgyQzn57RwEjNbGWMM/bDY=")
 )
 
@@ -231,7 +231,7 @@ func (c *cmd) Parse() []string {
 }
 
 func (c *cmd) gather() {
-	c.flag = flag.NewFlagSet("mox "+strings.Join(c.words, " "), flag.ExitOnError)
+	c.flag = flag.NewFlagSet("beacon "+strings.Join(c.words, " "), flag.ExitOnError)
 	c._gather = true
 	defer func() {
 		x := recover()
@@ -245,7 +245,7 @@ func (c *cmd) gather() {
 
 func (c *cmd) makeUsage() string {
 	var r strings.Builder
-	cs := "mox " + strings.Join(c.words, " ")
+	cs := "beacon " + strings.Join(c.words, " ")
 	for i, line := range strings.Split(strings.TrimSpace(c.params), "\n") {
 		s := ""
 		if i == 0 {
@@ -311,7 +311,7 @@ If a single command matches, its usage and full help text is printed.
 	}
 	for _, c := range partial {
 		c.gather()
-		line := "mox " + strings.Join(c.words, " ")
+		line := "beacon " + strings.Join(c.words, " ")
 		fmt.Printf("%s\n", line)
 		if c.help != "" {
 			fmt.Printf("\t%s\n", strings.Split(c.help, "\n")[0])
@@ -341,7 +341,7 @@ Used to generate documentation.
 		}
 		n++
 
-		fmt.Fprintf(os.Stderr, "# mox %s\n\n", strings.Join(c.words, " "))
+		fmt.Fprintf(os.Stderr, "# beacon %s\n\n", strings.Join(c.words, " "))
 		if c.help != "" {
 			fmt.Fprintln(os.Stderr, c.help+"\n")
 		}
@@ -354,7 +354,7 @@ Used to generate documentation.
 func usage(l []cmd, unlisted bool) {
 	var lines []string
 	if !unlisted {
-		lines = append(lines, "mox [-config config/mox.conf] [-pedantic] ...")
+		lines = append(lines, "beacon [-config config/beacon.conf] [-pedantic] ...")
 	}
 	for _, c := range l {
 		c.gather()
@@ -362,7 +362,7 @@ func usage(l []cmd, unlisted bool) {
 			continue
 		}
 		for _, line := range strings.Split(c.params, "\n") {
-			x := append([]string{"mox"}, c.words...)
+			x := append([]string{"beacon"}, c.words...)
 			if line != "" {
 				x = append(x, line)
 			}
@@ -386,27 +386,27 @@ var pedantic bool
 // restores any loglevel specified on the command-line, instead of using the
 // loglevels from the config file and it does not load files like TLS keys/certs.
 func mustLoadConfig() {
-	mox.MustLoadConfig(false, false)
+	beacon.MustLoadConfig(false, false)
 	if level, ok := mlog.Levels[loglevel]; loglevel != "" && ok {
-		mox.Conf.Log[""] = level
-		mlog.SetConfig(mox.Conf.Log)
+		beacon.Conf.Log[""] = level
+		mlog.SetConfig(beacon.Conf.Log)
 	} else if loglevel != "" && !ok {
 		log.Fatal("unknown loglevel", slog.String("loglevel", loglevel))
 	}
 	if pedantic {
-		mox.SetPedantic(true)
+		beacon.SetPedantic(true)
 	}
 }
 
 func main() {
 	// CheckConsistencyOnClose is true by default, for all the test packages. A regular
-	// mox server should never use it. But integration tests enable it again with a
+	// beacon server should never use it. But integration tests enable it again with a
 	// flag.
 	store.CheckConsistencyOnClose = false
 
 	ctxbg := context.Background()
-	mox.Shutdown = ctxbg
-	mox.Context = ctxbg
+	beacon.Shutdown = ctxbg
+	beacon.Context = ctxbg
 
 	log.SetFlags(0)
 
@@ -422,7 +422,7 @@ func main() {
 		return
 	}
 
-	flag.StringVar(&mox.ConfigStaticPath, "config", envString("MOXCONF", filepath.FromSlash("config/mox.conf")), "configuration file, other config files are looked up in the same directory, defaults to $MOXCONF with a fallback to mox.conf")
+	flag.StringVar(&beacon.ConfigStaticPath, "config", envString("BEACONCONF", filepath.FromSlash("config/beacon.conf")), "configuration file, other config files are looked up in the same directory, defaults to $BEACONCONF with a fallback to beacon.conf")
 	flag.StringVar(&loglevel, "loglevel", "", "if non-empty, this log level is set early in startup")
 	flag.BoolVar(&pedantic, "pedantic", false, "protocol violations result in errors instead of accepting/working around them")
 	flag.BoolVar(&store.CheckConsistencyOnClose, "checkconsistency", false, "dangerous option for testing only, enables data checks that abort/panic when inconsistencies are found")
@@ -445,13 +445,13 @@ func main() {
 	defer profile(cpuprofile, memprofile)()
 
 	if pedantic {
-		mox.SetPedantic(true)
+		beacon.SetPedantic(true)
 	}
 
-	mox.ConfigDynamicPath = filepath.Join(filepath.Dir(mox.ConfigStaticPath), "domains.conf")
+	beacon.ConfigDynamicPath = filepath.Join(filepath.Dir(beacon.ConfigStaticPath), "domains.conf")
 	if level, ok := mlog.Levels[loglevel]; ok && loglevel != "" {
-		mox.Conf.Log[""] = level
-		mlog.SetConfig(mox.Conf.Log)
+		beacon.Conf.Log[""] = level
+		mlog.SetConfig(beacon.Conf.Log)
 		// note: SetConfig may be called again when subcommands loads config.
 	}
 
@@ -466,7 +466,7 @@ next:
 				continue next
 			}
 		}
-		c.flag = flag.NewFlagSet("mox "+strings.Join(c.words, " "), flag.ExitOnError)
+		c.flag = flag.NewFlagSet("beacon "+strings.Join(c.words, " "), flag.ExitOnError)
 		c.flagArgs = args[len(c.words):]
 		c.log = mlog.New(strings.Join(c.words, ""), nil)
 		c.fn(&c)
@@ -522,7 +522,7 @@ configured over otherwise secured connections, like a VPN.
 }
 
 func printClientConfig(d dns.Domain) {
-	cc, err := mox.ClientConfigsDomain(d)
+	cc, err := beacon.ClientConfigsDomain(d)
 	xcheckf(err, "getting client config")
 	fmt.Printf("%-20s %-30s %5s %-15s %s\n", "Protocol", "Host", "Port", "Listener", "Note")
 	for _, e := range cc.Entries {
@@ -548,9 +548,9 @@ are printed.
 		c.Usage()
 	}
 
-	mox.FilesImmediate = true
+	beacon.FilesImmediate = true
 
-	_, errs := mox.ParseConfig(context.Background(), c.log, mox.ConfigStaticPath, true, true, false)
+	_, errs := beacon.ParseConfig(context.Background(), c.log, beacon.ConfigStaticPath, true, true, false)
 	if len(errs) > 1 {
 		log.Printf("multiple errors:")
 		for _, err := range errs {
@@ -565,10 +565,10 @@ are printed.
 }
 
 func cmdConfigDescribeStatic(c *cmd) {
-	c.params = ">mox.conf"
-	c.help = `Prints an annotated empty configuration for use as mox.conf.
+	c.params = ">beacon.conf"
+	c.help = `Prints an annotated empty configuration for use as beacon.conf.
 
-The static configuration file cannot be reloaded while mox is running. Mox has
+The static configuration file cannot be reloaded while beacon is running. Mox has
 to be restarted for changes to the static configuration file to take effect.
 
 This configuration file needs modifications to make it valid. For example, it
@@ -589,7 +589,7 @@ func cmdConfigDescribeDomains(c *cmd) {
 
 The domains configuration file contains the domains and their configuration,
 and accounts and their configuration. This includes the configured email
-addresses. The mox admin web interface, and the mox command line interface, can
+addresses. The beacon admin web interface, and the beacon command line interface, can
 make changes to this file. Mox automatically reloads this file when it changes.
 
 Like the static configuration, the example domains.conf printed by this command
@@ -605,11 +605,11 @@ needs modifications to make it valid.
 }
 
 func cmdConfigPrintservice(c *cmd) {
-	c.params = ">mox.service"
-	c.help = `Prints a systemd unit service file for mox.
+	c.params = ">beacon.service"
+	c.help = `Prints a systemd unit service file for beacon.
 
 This is the same file as generated using quickstart. If the systemd service file
-has changed with a newer version of mox, use this command to generate an up to
+has changed with a newer version of beacon, use this command to generate an up to
 date version.
 `
 	if len(c.Parse()) != 0 {
@@ -619,9 +619,9 @@ date version.
 	pwd, err := os.Getwd()
 	if err != nil {
 		log.Printf("current working directory: %v", err)
-		pwd = "/home/mox"
+		pwd = "/home/beacon"
 	}
-	service := strings.ReplaceAll(moxService, "/home/mox", pwd)
+	service := strings.ReplaceAll(beaconService, "/home/beacon", pwd)
 	fmt.Print(service)
 }
 
@@ -653,7 +653,7 @@ func ctlcmdConfigDomainAdd(ctl *ctl, domain dns.Domain, account, localpart strin
 	ctl.xwrite(account)
 	ctl.xwrite(localpart)
 	ctl.xreadok()
-	fmt.Printf("domain added, remember to add dns records, see:\n\nmox config dnsrecords %s\nmox config dnscheck %s\n", domain.Name(), domain.Name())
+	fmt.Printf("domain added, remember to add dns records, see:\n\nbeacon config dnsrecords %s\nbeacon config dnscheck %s\n", domain.Name(), domain.Name())
 }
 
 func cmdConfigDomainRemove(c *cmd) {
@@ -701,7 +701,7 @@ func ctlcmdConfigAccountAdd(ctl *ctl, account, address string) {
 	ctl.xwrite(account)
 	ctl.xwrite(address)
 	ctl.xreadok()
-	fmt.Printf("account added, set a password with \"mox setaccountpassword %s\"\n", account)
+	fmt.Printf("account added, set a password with \"beacon setaccountpassword %s\"\n", account)
 }
 
 func cmdConfigAccountRemove(c *cmd) {
@@ -788,7 +788,7 @@ configured.
 
 	d := xparseDomain(args[0], "domain")
 	mustLoadConfig()
-	domConf, ok := mox.Conf.Domain(d)
+	domConf, ok := beacon.Conf.Domain(d)
 	if !ok {
 		log.Fatalf("unknown domain")
 	}
@@ -800,9 +800,9 @@ configured.
 	}
 
 	var certIssuerDomainName, acmeAccountURI string
-	public := mox.Conf.Static.Listeners["public"]
+	public := beacon.Conf.Static.Listeners["public"]
 	if public.TLS != nil && public.TLS.ACME != "" {
-		acme, ok := mox.Conf.Static.ACME[public.TLS.ACME]
+		acme, ok := beacon.Conf.Static.ACME[public.TLS.ACME]
 		if ok && acme.Manager.Manager.Client != nil {
 			certIssuerDomainName = acme.IssuerDomainName
 			acc, err := acme.Manager.Manager.Client.GetReg(context.Background(), "")
@@ -813,7 +813,7 @@ configured.
 		}
 	}
 
-	records, err := mox.DomainRecords(domConf, d, result.Authentic, certIssuerDomainName, acmeAccountURI)
+	records, err := beacon.DomainRecords(domConf, d, result.Authentic, certIssuerDomainName, acmeAccountURI)
 	xcheckf(err, "records")
 	fmt.Print(strings.Join(records, "\n") + "\n")
 }
@@ -828,12 +828,12 @@ func cmdConfigDNSCheck(c *cmd) {
 
 	d := xparseDomain(args[0], "domain")
 	mustLoadConfig()
-	_, ok := mox.Conf.Domain(d)
+	_, ok := beacon.Conf.Domain(d)
 	if !ok {
 		log.Fatalf("unknown domain")
 	}
 
-	// todo future: move http.Admin.CheckDomain to mox- and make it return a regular error.
+	// todo future: move http.Admin.CheckDomain to beacon- and make it return a regular error.
 	defer func() {
 		x := recover()
 		if x == nil {
@@ -880,23 +880,23 @@ func cmdConfigEnsureACMEHostprivatekeys(c *cmd) {
 	c.params = ""
 	c.help = `Ensure host private keys exist for TLS listeners with ACME.
 
-In mox.conf, each listener can have TLS configured. Long-lived private key files
+In beacon.conf, each listener can have TLS configured. Long-lived private key files
 can be specified, which will be used when requesting ACME certificates.
 Configuring these private keys makes it feasible to publish DANE TLSA records
 for the corresponding public keys in DNS, protected with DNSSEC, allowing TLS
 certificate verification without depending on a list of Certificate Authorities
-(CAs). Previous versions of mox did not pre-generate private keys for use with
+(CAs). Previous versions of beacon did not pre-generate private keys for use with
 ACME certificates, but would generate private keys on-demand. By explicitly
 configuring private keys, they will not change automatedly with new
 certificates, and the DNS TLSA records stay valid.
 
-This command looks for listeners in mox.conf with TLS with ACME configured. For
+This command looks for listeners in beacon.conf with TLS with ACME configured. For
 each missing host private key (of type rsa-2048 and ecdsa-p256) a key is written
 to config/hostkeys/. If a certificate exists in the ACME "cache", its private
 key is copied. Otherwise a new private key is generated. Snippets for manually
-updating/editing mox.conf are printed.
+updating/editing beacon.conf are printed.
 
-After running this command, and updating mox.conf, run "mox config dnsrecords"
+After running this command, and updating beacon.conf, run "beacon config dnsrecords"
 for a domain and create the TLSA DNS records it suggests to enable DANE.
 `
 	args := c.Parse()
@@ -1023,13 +1023,13 @@ for a domain and create the TLSA DNS records it suggests to enable DANE.
 	mustLoadConfig()
 	timestamp := time.Now().Format("20060102T150405")
 	didCreate := false
-	for listenerName, l := range mox.Conf.Static.Listeners {
+	for listenerName, l := range beacon.Conf.Static.Listeners {
 		if l.TLS == nil || l.TLS.ACME == "" {
 			continue
 		}
 		haveKeyTypes := map[autocert.KeyType]bool{}
 		for _, privKeyFile := range l.TLS.HostPrivateKeyFiles {
-			p := mox.ConfigDirPath(privKeyFile)
+			p := beacon.ConfigDirPath(privKeyFile)
 			f, err := os.Open(p)
 			xcheckf(err, "open host private key")
 			privKey, err := loadPrivateKey(f)
@@ -1056,7 +1056,7 @@ for a domain and create the TLSA DNS records it suggests to enable DANE.
 			// Lookup key in ACME cache.
 			host := l.HostnameDomain
 			if host.ASCII == "" {
-				host = mox.Conf.Static.HostnameDomain
+				host = beacon.Conf.Static.HostnameDomain
 			}
 			filename := host.ASCII
 			kind := "ecdsap256"
@@ -1064,11 +1064,11 @@ for a domain and create the TLSA DNS records it suggests to enable DANE.
 				filename += "+rsa"
 				kind = "rsa2048"
 			}
-			p := mox.DataDirPath(filepath.Join("acme", "keycerts", l.TLS.ACME, filename))
+			p := beacon.DataDirPath(filepath.Join("acme", "keycerts", l.TLS.ACME, filename))
 			privKey := xtryLoadPrivateKey(kt, p)
 
 			relPath := filepath.Join("hostkeys", fmt.Sprintf("%s.%s.%s.privatekey.pkcs8.pem", host.Name(), timestamp, kind))
-			destPath := mox.ConfigDirPath(relPath)
+			destPath := beacon.ConfigDirPath(relPath)
 			err := writeHostPrivateKey(privKey, destPath)
 			xcheckf(err, "writing host private key file to %s: %v", destPath, err)
 			created = append(created, relPath)
@@ -1079,7 +1079,7 @@ for a domain and create the TLSA DNS records it suggests to enable DANE.
 			tls := config.TLS{
 				HostPrivateKeyFiles: append(l.TLS.HostPrivateKeyFiles, created...),
 			}
-			fmt.Printf("\nEnsure Listener %q in %s has the following in its TLS section, below \"ACME: %s\" (don't forget to indent with tabs):\n\n", listenerName, mox.ConfigStaticPath, l.TLS.ACME)
+			fmt.Printf("\nEnsure Listener %q in %s has the following in its TLS section, below \"ACME: %s\" (don't forget to indent with tabs):\n\n", listenerName, beacon.ConfigStaticPath, l.TLS.ACME)
 			err := sconf.Write(os.Stdout, tls)
 			xcheckf(err, "writing new TLS.HostPrivateKeyFiles section")
 			fmt.Println()
@@ -1087,7 +1087,7 @@ for a domain and create the TLSA DNS records it suggests to enable DANE.
 	}
 	if didCreate {
 		fmt.Printf(`
-After updating mox.conf and restarting, run "mox config dnsrecords" for a
+After updating beacon.conf and restarting, run "beacon config dnsrecords" for a
 domain and create the TLSA DNS records it suggests to enable DANE.
 `)
 	}
@@ -1097,7 +1097,7 @@ func cmdLoglevels(c *cmd) {
 	c.params = "[level [pkg]]"
 	c.help = `Print the log levels, or set a new default log level, or a level for the given package.
 
-By default, a single log level applies to all logging in mox. But for each
+By default, a single log level applies to all logging in beacon. But for each
 "pkg", an overriding log level can be configured. Examples of packages:
 smtpserver, smtpclient, queue, imapserver, spf, dkim, dmarc, junk, message,
 etc.
@@ -1137,7 +1137,7 @@ func ctlcmdSetLoglevels(ctl *ctl, pkg, level string) {
 }
 
 func cmdStop(c *cmd) {
-	c.help = `Shut mox down, giving connections maximum 3 seconds to stop before closing them.
+	c.help = `Shut beacon down, giving connections maximum 3 seconds to stop before closing them.
 
 While shutting down, new IMAP and SMTP connections will get a status response
 indicating temporary unavailability. Existing connections will get a 3 second
@@ -1160,7 +1160,7 @@ new mail deliveries.
 	} else if err != io.EOF {
 		log.Fatalf("expected eof after graceful shutdown, got error %v", err)
 	}
-	fmt.Println("mox stopped")
+	fmt.Println("beacon stopped")
 }
 
 func cmdBackup(c *cmd) {
@@ -1171,7 +1171,7 @@ Backup creates consistent snapshots of the databases and message files and
 copies other files in the data directory. Empty directories are not copied.
 These files can then be stored elsewhere for long-term storage, or used to fall
 back to should an upgrade fail. Simply copying files in the data directory
-while mox is running can result in unusable database files.
+while beacon is running can result in unusable database files.
 
 Message files never change (they are read-only, though can be removed) and are
 hard-linked so they don't consume additional space. If hardlinking fails, for
@@ -1188,14 +1188,14 @@ are stored, but with a warning.
 A clean successful backup does not print any output by default. Use the
 -verbose flag for details, including timing.
 
-To restore a backup, first shut down mox, move away the old data directory and
-move an earlier backed up directory in its place, run "mox verifydata",
-possibly with the "-fix" option, and restart mox. After the restore, you may
-also want to run "mox bumpuidvalidity" for each account for which messages in a
+To restore a backup, first shut down beacon, move away the old data directory and
+move an earlier backed up directory in its place, run "beacon verifydata",
+possibly with the "-fix" option, and restart beacon. After the restore, you may
+also want to run "beacon bumpuidvalidity" for each account for which messages in a
 mailbox changed, to force IMAP clients to synchronize mailbox state.
 
 Before upgrading, to check if the upgrade will likely succeed, first make a
-backup, then use the new mox binary to run "mox verifydata" on the backup. This
+backup, then use the new beacon binary to run "beacon verifydata" on the backup. This
 can change the backup files (e.g. upgrade database files, move away
 unrecognized message files), so you should make a new backup before actually
 upgrading.
@@ -1238,7 +1238,7 @@ The password is read from stdin. Its bcrypt hash is stored in a file named
 	}
 	mustLoadConfig()
 
-	path := mox.ConfigDirPath(mox.Conf.Static.AdminPasswordFile)
+	path := beacon.ConfigDirPath(beacon.Conf.Static.AdminPasswordFile)
 	if path == "" {
 		log.Fatal("no admin password file configured")
 	}
@@ -1360,7 +1360,7 @@ next scheduled attempt to now, it can cause delivery to fail earlier than
 without rescheduling.
 
 With the -transport flag, future delivery attempts are done using the specified
-transport. Transports can be configured in mox.conf, e.g. to submit to a remote
+transport. Transports can be configured in beacon.conf, e.g. to submit to a remote
 queue over SMTP.
 `
 	var id int64
@@ -1452,13 +1452,13 @@ func cmdDKIMGenrsa(c *cmd) {
 	c.help = `Generate a new 2048 bit RSA private key for use with DKIM.
 
 The generated file is in PEM format, and has a comment it is generated for use
-with DKIM, by mox.
+with DKIM, by beacon.
 `
 	if len(c.Parse()) != 0 {
 		c.Usage()
 	}
 
-	buf, err := mox.MakeDKIMRSAKey(dns.Domain{}, dns.Domain{})
+	buf, err := beacon.MakeDKIMRSAKey(dns.Domain{}, dns.Domain{})
 	xcheckf(err, "making rsa private key")
 	_, err = os.Stdout.Write(buf)
 	xcheckf(err, "writing rsa private key")
@@ -1669,7 +1669,7 @@ sharing most of its code.
 			DANERecords:        daneRecords,
 			DANEMoreHostnames:  tlsHostnames[1:],
 			DANEVerifiedRecord: &verifiedRecord,
-			RootCAs:            mox.Conf.Static.TLS.CertPool,
+			RootCAs:            beacon.Conf.Static.TLS.CertPool,
 		}
 		tlsPKIX := false
 		sc, err := smtpclient.New(ctxbg, c.log.Logger, conn, tlsMode, tlsPKIX, ehloDomain, tlsHostnames[0], opts)
@@ -1861,10 +1861,10 @@ Lookup always prints whether the response was DNSSEC-protected.
 
 Examples:
 
-mox dns lookup ptr 1.1.1.1
-mox dns lookup mx xmox.nl
-mox dns lookup txt _dmarc.xmox.nl.
-mox dns lookup tlsa _25._tcp.xmox.nl
+beacon dns lookup ptr 1.1.1.1
+beacon dns lookup mx xbeacon.nl
+beacon dns lookup txt _dmarc.xbeacon.nl.
+beacon dns lookup tlsa _25._tcp.xbeacon.nl
 `
 	args := c.Parse()
 
@@ -1996,7 +1996,7 @@ so it is recommended to sign messages with both RSA and ed25519 keys.
 		c.Usage()
 	}
 
-	buf, err := mox.MakeDKIMEd25519Key(dns.Domain{}, dns.Domain{})
+	buf, err := beacon.MakeDKIMEd25519Key(dns.Domain{}, dns.Domain{})
 	xcheckf(err, "making dkim ed25519 key")
 	_, err = os.Stdout.Write(buf)
 	xcheckf(err, "writing dkim ed25519 key")
@@ -2134,12 +2134,12 @@ headers prepended.
 
 	mustLoadConfig()
 
-	domConf, ok := mox.Conf.Domain(dom)
+	domConf, ok := beacon.Conf.Domain(dom)
 	if !ok {
 		log.Fatalf("domain %s not configured", dom)
 	}
 
-	selectors := mox.DKIMSelectors(domConf.DKIM)
+	selectors := beacon.DKIMSelectors(domConf.DKIM)
 	headers, err := dkim.Sign(context.Background(), c.log.Logger, localpart, dom, selectors, false, msgf)
 	xcheckf(err, "signing message with dkim")
 	if headers == "" {
@@ -2691,10 +2691,10 @@ The health of a DNS blocklist can be checked by querying for 127.0.0.1 and
 }
 
 func cmdCheckupdate(c *cmd) {
-	c.help = `Check if a newer version of mox is available.
+	c.help = `Check if a newer version of beacon is available.
 
-A single DNS TXT lookup to _updates.xmox.nl tells if a new version is
-available. If so, a changelog is fetched from https://updates.xmox.nl, and the
+A single DNS TXT lookup to _updates.xbeacon.nl tells if a new version is
+available. If so, a changelog is fetched from https://updates.xbeacon.nl, and the
 individual entries verified with a builtin public key. The changelog is
 printed.
 `
@@ -2703,7 +2703,7 @@ printed.
 	}
 	mustLoadConfig()
 
-	current, lastknown, _, err := mox.LastKnown()
+	current, lastknown, _, err := beacon.LastKnown()
 	if err != nil {
 		log.Printf("getting last known version: %s", err)
 	} else {
@@ -2732,9 +2732,9 @@ func cmdCid(c *cmd) {
 	c.params = "cid"
 	c.help = `Turn an ID from a Received header into a cid, for looking up in logs.
 
-A cid is essentially a connection counter initialized when mox starts. Each log
-line contains a cid. Received headers added by mox contain a unique ID that can
-be decrypted to a cid by admin of a mox instance only.
+A cid is essentially a connection counter initialized when beacon starts. Each log
+line contains a cid. Received headers added by beacon contain a unique ID that can
+be decrypted to a cid by admin of a beacon instance only.
 `
 	args := c.Parse()
 	if len(args) != 1 {
@@ -2742,37 +2742,37 @@ be decrypted to a cid by admin of a mox instance only.
 	}
 
 	mustLoadConfig()
-	recvidpath := mox.DataDirPath("receivedid.key")
+	recvidpath := beacon.DataDirPath("receivedid.key")
 	recvidbuf, err := os.ReadFile(recvidpath)
 	xcheckf(err, "reading %s", recvidpath)
 	if len(recvidbuf) != 16+8 {
 		log.Fatalf("bad data in %s: got %d bytes, expect 16+8=24", recvidpath, len(recvidbuf))
 	}
-	err = mox.ReceivedIDInit(recvidbuf[:16], recvidbuf[16:])
+	err = beacon.ReceivedIDInit(recvidbuf[:16], recvidbuf[16:])
 	xcheckf(err, "init receivedid")
 
-	cid, err := mox.ReceivedToCid(args[0])
+	cid, err := beacon.ReceivedToCid(args[0])
 	xcheckf(err, "received id to cid")
 	fmt.Printf("%x\n", cid)
 }
 
 func cmdVersion(c *cmd) {
-	c.help = "Prints this mox version."
+	c.help = "Prints this beacon version."
 	if len(c.Parse()) != 0 {
 		c.Usage()
 	}
-	fmt.Println(moxvar.Version)
+	fmt.Println(beaconvar.Version)
 	fmt.Printf("%s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }
 
-// todo: should make it possible to run this command against a running mox. it should disconnect existing clients for accounts with a bumped uidvalidity, so they will reconnect and refetch the data.
+// todo: should make it possible to run this command against a running beacon. it should disconnect existing clients for accounts with a bumped uidvalidity, so they will reconnect and refetch the data.
 func cmdBumpUIDValidity(c *cmd) {
 	c.params = "account [mailbox]"
 	c.help = `Change the IMAP UID validity of the mailbox, causing IMAP clients to refetch messages.
 
 This can be useful after manually repairing metadata about the account/mailbox.
 
-Opens account database file directly. Ensure mox does not have the account
+Opens account database file directly. Ensure beacon does not have the account
 open, or is not running.
 `
 	args := c.Parse()
@@ -2823,7 +2823,7 @@ func cmdReassignUIDs(c *cmd) {
 	c.params = "account [mailboxid]"
 	c.help = `Reassign UIDs in one mailbox or all mailboxes in an account and bump UID validity, causing IMAP clients to refetch messages.
 
-Opens account database file directly. Ensure mox does not have the account
+Opens account database file directly. Ensure beacon does not have the account
 open, or is not running.
 `
 	args := c.Parse()
@@ -2924,7 +2924,7 @@ Each mailbox has a UIDVALIDITY sequence number, which should always be lower
 than the per-account next UIDVALIDITY to use. If it is not, the account next
 UIDVALIDITY is updated.
 
-Opens account database file directly. Ensure mox does not have the account
+Opens account database file directly. Ensure beacon does not have the account
 open, or is not running.
 `
 	args := c.Parse()
@@ -2991,7 +2991,7 @@ func cmdFixmsgsize(c *cmd) {
 
 Messages with an inconsistent size are also parsed again.
 
-If an inconsistency is found, you should probably also run "mox
+If an inconsistency is found, you should probably also run "beacon
 bumpuidvalidity" on the mailboxes or entire account to force IMAP clients to
 refetch messages.
 `
@@ -3019,7 +3019,7 @@ func cmdReparse(c *cmd) {
 	c.params = "[account]"
 	c.help = `Parse all messages in the account or all accounts again
 
-Can be useful after upgrading mox with improved message parsing. Messages are
+Can be useful after upgrading beacon with improved message parsing. Messages are
 parsed in batches, so other access to the mailboxes/messages are not blocked
 while reparsing all messages.
 `
@@ -3148,7 +3148,7 @@ func cmdOpenaccounts(c *cmd) {
 	c.params = "datadir account ..."
 	c.help = `Open and close accounts, for triggering data upgrades, for tests.
 
-Opens database files directly, not going through a running mox instance.
+Opens database files directly, not going through a running beacon instance.
 `
 
 	args := c.Parse()
@@ -3228,7 +3228,7 @@ func cmdReadmessages(c *cmd) {
 
 For performance testing.
 
-Opens database files directly, not going through a running mox instance.
+Opens database files directly, not going through a running beacon instance.
 `
 
 	gomaxprocs := runtime.GOMAXPROCS(0)
@@ -3258,7 +3258,7 @@ Opens database files directly, not going through a running mox instance.
 		a, err := store.OpenAccountDB(c.log, accDir, accName)
 		xcheckf(err, "open account %s", accName)
 
-		prepareMessages := func(in, out chan moxio.Work[store.Message, threadPrep]) {
+		prepareMessages := func(in, out chan beaconio.Work[store.Message, threadPrep]) {
 			headerbuf := make([]byte, 8*1024)
 			scratch := make([]byte, 4*1024)
 			for {
@@ -3320,7 +3320,7 @@ Opens database files directly, not going through a running mox instance.
 			return nil
 		}
 
-		wq := moxio.NewWorkQueue[store.Message, threadPrep](procs, workqueuesize, prepareMessages, processMessage)
+		wq := beaconio.NewWorkQueue[store.Message, threadPrep](procs, workqueuesize, prepareMessages, processMessage)
 
 		err = a.DB.Write(context.Background(), func(tx *bstore.Tx) error {
 			q := bstore.QueryTx[store.Message](tx)

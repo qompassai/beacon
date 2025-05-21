@@ -21,20 +21,20 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtasts"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtasts"
 )
 
 var ctxbg = context.Background()
 
 func TestRefresh(t *testing.T) {
-	mox.Shutdown = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/mtasts/fake.conf")
-	mox.Conf.Static.DataDir = "."
+	beacon.Shutdown = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/mtasts/fake.conf")
+	beacon.Conf.Static.DataDir = "."
 
-	dbpath := mox.DataDirPath("mtasts.db")
+	dbpath := beacon.DataDirPath("mtasts.db")
 	os.MkdirAll(filepath.Dir(dbpath), 0770)
 	os.Remove(dbpath)
 	defer os.Remove(dbpath)
@@ -77,21 +77,21 @@ func TestRefresh(t *testing.T) {
 
 	now := time.Now()
 	// Updated just now.
-	insert("mox.example", now.Add(24*time.Hour), now, now, false, "1", mtasts.ModeEnforce, 3600, "mx.mox.example.com")
+	insert("beacon.example", now.Add(24*time.Hour), now, now, false, "1", mtasts.ModeEnforce, 3600, "mx.beacon.example.com")
 	// To be removed.
-	insert("stale.mox.example", now.Add(-time.Hour), now, now.Add(-181*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.mox.example.com")
+	insert("stale.beacon.example", now.Add(-time.Hour), now, now.Add(-181*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.beacon.example.com")
 	// To be refreshed, same id.
-	insert("refresh.mox.example", now.Add(7*24*time.Hour), now.Add(-24*time.Hour), now.Add(-179*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.mox.example.com")
+	insert("refresh.beacon.example", now.Add(7*24*time.Hour), now.Add(-24*time.Hour), now.Add(-179*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.beacon.example.com")
 	// To be refreshed and succeed.
-	insert("policyok.mox.example", now.Add(7*24*time.Hour), now.Add(-24*time.Hour), now.Add(-179*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.mox.example.com")
+	insert("policyok.beacon.example", now.Add(7*24*time.Hour), now.Add(-24*time.Hour), now.Add(-179*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.beacon.example.com")
 	// To be refreshed and fail to fetch.
-	insert("policybad.mox.example", now.Add(7*24*time.Hour), now.Add(-24*time.Hour), now.Add(-179*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.mox.example.com")
+	insert("policybad.beacon.example", now.Add(7*24*time.Hour), now.Add(-24*time.Hour), now.Add(-179*24*time.Hour), false, "1", mtasts.ModeEnforce, 3600, "mx.beacon.example.com")
 
 	resolver := dns.MockResolver{
 		TXT: map[string][]string{
-			"_mta-sts.refresh.mox.example.":   {"v=STSv1; id=1"},
-			"_mta-sts.policyok.mox.example.":  {"v=STSv1; id=2"},
-			"_mta-sts.policybad.mox.example.": {"v=STSv1; id=2"},
+			"_mta-sts.refresh.beacon.example.":   {"v=STSv1; id=1"},
+			"_mta-sts.policyok.beacon.example.":  {"v=STSv1; id=2"},
+			"_mta-sts.policybad.beacon.example.": {"v=STSv1; id=2"},
 		},
 	}
 
@@ -103,11 +103,11 @@ func TestRefresh(t *testing.T) {
 	go func() {
 		mux := &http.ServeMux{}
 		mux.HandleFunc("/.well-known/mta-sts.txt", func(w http.ResponseWriter, r *http.Request) {
-			if r.Host == "mta-sts.policybad.mox.example" {
+			if r.Host == "mta-sts.policybad.beacon.example" {
 				w.WriteHeader(500)
 				return
 			}
-			fmt.Fprintf(w, "version: STSv1\nmode: enforce\nmx: mx.mox.example.com\nmax_age: 3600\n")
+			fmt.Fprintf(w, "version: STSv1\nmode: enforce\nmx: mx.beacon.example.com\nmax_age: 3600\n")
 		})
 		s := &http.Server{
 			Handler: mux,
@@ -147,18 +147,18 @@ func TestRefresh(t *testing.T) {
 
 	// Should not do any more refreshes and return immediately.
 	q := bstore.QueryDB[PolicyRecord](ctxbg, db)
-	q.FilterNonzero(PolicyRecord{Domain: "policybad.mox.example"})
+	q.FilterNonzero(PolicyRecord{Domain: "policybad.beacon.example"})
 	if _, err := q.Delete(); err != nil {
 		t.Fatalf("delete record that would be refreshed: %v", err)
 	}
-	mox.Context = ctxbg
-	mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
-	mox.ShutdownCancel()
+	beacon.Context = ctxbg
+	beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
+	beacon.ShutdownCancel()
 	n := refresh()
 	if n != 0 {
 		t.Fatalf("refresh found unexpected work, n %d", n)
 	}
-	mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
+	beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
 }
 
 type pipeListener struct {
@@ -215,7 +215,7 @@ func fakeCert(t *testing.T, expired bool) tls.Certificate {
 
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1), // Required field...
-		DNSNames:     []string{"mta-sts.policybad.mox.example", "mta-sts.policyok.mox.example"},
+		DNSNames:     []string{"mta-sts.policybad.beacon.example", "mta-sts.policyok.beacon.example"},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     notAfter,
 	}

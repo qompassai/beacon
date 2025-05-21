@@ -16,7 +16,7 @@ type Extension struct {
 //
 // Example:
 //
-//	v=TLSRPTv1; rua=mailto:tlsrpt@mox.example;
+//	v=TLSRPTv1; rua=mailto:tlsrpt@beacon.example;
 type Record struct {
 	Version string // "TLSRPTv1", for "v=".
 

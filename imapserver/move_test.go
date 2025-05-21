@@ -3,7 +3,7 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestMove(t *testing.T) {
@@ -17,13 +17,13 @@ func TestMove(t *testing.T) {
 	tc3 := startNoSwitchboard(t)
 	defer tc3.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Select("inbox")
 
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 	tc2.client.Select("Trash")
 
-	tc3.client.Login("mjl@mox.example", "testtest")
+	tc3.client.Login("mjl@beacon.example", "testtest")
 	tc3.client.Select("inbox")
 
 	tc.transactf("bad", "move")          // Missing params.

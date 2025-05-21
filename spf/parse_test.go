@@ -74,15 +74,15 @@ func TestParse(t *testing.T) {
 	test("V=spf1 -all", &Record{Version: "spf1", Directives: []Directive{{Qualifier: "-", Mechanism: "all"}}})
 	test("v=spf1 !", nil) // Invalid character.
 	test("v=spf1 ?redirect=bogus", nil)
-	test("v=spf1 redirect=mox.example redirect=mox2.example", nil) // Duplicate redirect.
-	test("v=spf1 exp=mox.example exp=mox2.example", nil)           // Duplicate exp.
+	test("v=spf1 redirect=beacon.example redirect=beacon2.example", nil) // Duplicate redirect.
+	test("v=spf1 exp=beacon.example exp=beacon2.example", nil)           // Duplicate exp.
 	test("v=spf1 ip4:10.0.0.256", nil)                             // Invalid address.
 	test("v=spf1 ip6:2001:db8:::1", nil)                           // Invalid address.
 	test("v=spf1 ip4:10.0.0.1/33", nil)                            // IPv4 prefix >32.
 	test("v=spf1 ip6:2001:db8::1/129", nil)                        // IPv6 prefix >128.
-	test("v=spf1 a:mox.example/33", nil)                           // IPv4 prefix >32.
-	test("v=spf1 a:mox.example//129", nil)                         // IPv6 prefix >128.
-	test("v=spf1 a:mox.example//129", nil)                         // IPv6 prefix >128.
+	test("v=spf1 a:beacon.example/33", nil)                           // IPv4 prefix >32.
+	test("v=spf1 a:beacon.example//129", nil)                         // IPv6 prefix >128.
+	test("v=spf1 a:beacon.example//129", nil)                         // IPv6 prefix >128.
 	test("v=spf1 exists:%%.%{l1r+}.%{d}",
 		&Record{
 			Version: "spf1",

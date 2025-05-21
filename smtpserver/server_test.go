@@ -27,19 +27,19 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/subjectpass"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/subjectpass"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 var ctxbg = context.Background()
@@ -58,16 +58,16 @@ func tcheck(t *testing.T, err error, msg string) {
 	}
 }
 
-var submitMessage = strings.ReplaceAll(`From: <mjl@mox.example>
+var submitMessage = strings.ReplaceAll(`From: <mjl@beacon.example>
 To: <remote@example.org>
 Subject: test
-Message-Id: <test@mox.example>
+Message-Id: <test@beacon.example>
 
 test email
 `, "\n", "\r\n")
 
 var deliverMessage = strings.ReplaceAll(`From: <remote@example.org>
-To: <mjl@mox.example>
+To: <mjl@beacon.example>
 Subject: test
 Message-Id: <test@example.org>
 
@@ -75,7 +75,7 @@ test email
 `, "\n", "\r\n")
 
 var deliverMessage2 = strings.ReplaceAll(`From: <remote@example.org>
-To: <mjl@mox.example>
+To: <mjl@beacon.example>
 Subject: test
 Message-Id: <test2@example.org>
 
@@ -109,10 +109,10 @@ func newTestServer(t *testing.T, configPath string, resolver dns.Resolver) *test
 	}
 
 	log := mlog.New("smtpserver", nil)
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = configPath
-	mox.MustLoadConfig(true, false)
-	dataDir := mox.ConfigDirPath(mox.Conf.Static.DataDir)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = configPath
+	beacon.MustLoadConfig(true, false)
+	dataDir := beacon.ConfigDirPath(beacon.Conf.Static.DataDir)
 	os.RemoveAll(dataDir)
 	var err error
 	ts.acc, err = store.OpenAccount(log, "mjl")
@@ -151,11 +151,11 @@ func (ts *testserver) run(fn func(helloErr error, client *smtpclient.Client)) {
 			}
 		}
 
-		ourHostname := mox.Conf.Static.HostnameDomain
-		remoteHostname := dns.Domain{ASCII: "mox.example"}
+		ourHostname := beacon.Conf.Static.HostnameDomain
+		remoteHostname := dns.Domain{ASCII: "beacon.example"}
 		opts := smtpclient.Opts{
 			Auth:    auth,
-			RootCAs: mox.Conf.Static.TLS.CertPool,
+			RootCAs: beacon.Conf.Static.TLS.CertPool,
 		}
 		log := pkglog.WithCid(ts.cid - 1)
 		client, err := smtpclient.New(ctxbg, log.Logger, conn, ts.tlsmode, ts.tlspkix, ourHostname, remoteHostname, opts)
@@ -183,7 +183,7 @@ func (ts *testserver) runRaw(fn func(clientConn net.Conn)) {
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{fakeCert(ts.t)},
 		}
-		serve("test", ts.cid-2, dns.Domain{ASCII: "mox.example"}, tlsConfig, serverConn, ts.resolver, ts.submission, false, 100<<20, false, false, ts.requiretls, ts.dnsbls, 0)
+		serve("test", ts.cid-2, dns.Domain{ASCII: "beacon.example"}, tlsConfig, serverConn, ts.resolver, ts.submission, false, 100<<20, false, false, ts.requiretls, ts.dnsbls, 0)
 		close(serverdone)
 	}()
 
@@ -225,22 +225,22 @@ func checkEvaluationCount(t *testing.T, n int) []dmarcdb.Evaluation {
 
 // Test submission from authenticated user.
 func TestSubmission(t *testing.T) {
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), dns.MockResolver{})
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), dns.MockResolver{})
 	defer ts.close()
 
 	// Set DKIM signing config.
-	dom, _ := mox.Conf.Domain(dns.Domain{ASCII: "mox.example"})
+	dom, _ := beacon.Conf.Domain(dns.Domain{ASCII: "beacon.example"})
 	sel := config.Selector{
 		HashEffective:    "sha256",
 		HeadersEffective: []string{"From", "To", "Subject"},
 		Key:              ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize)), // Fake key, don't use for real.
-		Domain:           dns.Domain{ASCII: "mox.example"},
+		Domain:           dns.Domain{ASCII: "beacon.example"},
 	}
 	dom.DKIM = config.DKIM{
 		Selectors: map[string]config.Selector{"testsel": sel},
 		Sign:      []string{"testsel"},
 	}
-	mox.Conf.Dynamic.Domains["mox.example"] = dom
+	beacon.Conf.Dynamic.Domains["beacon.example"] = dom
 
 	testAuth := func(authfn func(user, pass string, cs *tls.ConnectionState) sasl.Client, user, pass string, expErr *smtpclient.Error) {
 		t.Helper()
@@ -253,7 +253,7 @@ func TestSubmission(t *testing.T) {
 		}
 		ts.run(func(err error, client *smtpclient.Client) {
 			t.Helper()
-			mailFrom := "mjl@mox.example"
+			mailFrom := "mjl@beacon.example"
 			rcptTo := "remote@example.org"
 			if err == nil {
 				err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(submitMessage)), strings.NewReader(submitMessage), false, false, false)
@@ -286,9 +286,9 @@ func TestSubmission(t *testing.T) {
 		},
 	}
 	for _, fn := range authfns {
-		testAuth(fn, "mjl@mox.example", "test", &smtpclient.Error{Secode: smtp.SePol7AuthBadCreds8})         // Bad (short) password.
-		testAuth(fn, "mjl@mox.example", "testtesttest", &smtpclient.Error{Secode: smtp.SePol7AuthBadCreds8}) // Bad password.
-		testAuth(fn, "mjl@mox.example", "testtest", nil)
+		testAuth(fn, "mjl@beacon.example", "test", &smtpclient.Error{Secode: smtp.SePol7AuthBadCreds8})         // Bad (short) password.
+		testAuth(fn, "mjl@beacon.example", "testtesttest", &smtpclient.Error{Secode: smtp.SePol7AuthBadCreds8}) // Bad password.
+		testAuth(fn, "mjl@beacon.example", "testtest", nil)
 	}
 }
 
@@ -300,7 +300,7 @@ func TestDelivery(t *testing.T) {
 		},
 		PTR: map[string][]string{},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), resolver)
 	defer ts.close()
 
 	ts.run(func(err error, client *smtpclient.Client) {
@@ -329,7 +329,7 @@ func TestDelivery(t *testing.T) {
 
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "unknown@mox.example" // User unknown.
+		rcptTo := "unknown@beacon.example" // User unknown.
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -341,7 +341,7 @@ func TestDelivery(t *testing.T) {
 
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -355,7 +355,7 @@ func TestDelivery(t *testing.T) {
 	resolver.PTR["127.0.0.10"] = []string{"example.org."}
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -395,7 +395,7 @@ func tretrain(t *testing.T, acc *store.Account) {
 	t.Helper()
 
 	// Fresh empty junkfilter.
-	basePath := mox.DataDirPath("accounts")
+	basePath := beacon.DataDirPath("accounts")
 	dbPath := filepath.Join(basePath, acc.Name, "junkfilter.db")
 	bloomPath := filepath.Join(basePath, acc.Name, "junkfilter.bloom")
 	os.Remove(dbPath)
@@ -442,7 +442,7 @@ func TestSpam(t *testing.T) {
 			"_dmarc.example.org.": {"v=DMARC1;p=reject; rua=mailto:dmarcrpt@example.org"},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/junk/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/junk/beacon.conf"), resolver)
 	defer ts.close()
 
 	// Insert spammy messages. No junkfilter training yet.
@@ -455,7 +455,7 @@ func TestSpam(t *testing.T) {
 		MailFromLocalpart: smtp.Localpart("remote"),
 		MailFromDomain:    "example.org",
 		RcptToLocalpart:   smtp.Localpart("mjl"),
-		RcptToDomain:      "mox.example",
+		RcptToDomain:      "beacon.example",
 		MsgFromLocalpart:  smtp.Localpart("remote"),
 		MsgFromDomain:     "example.org",
 		MsgFromOrgDomain:  "example.org",
@@ -488,7 +488,7 @@ func TestSpam(t *testing.T) {
 	// Delivery from sender with bad reputation should fail.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -505,7 +505,7 @@ func TestSpam(t *testing.T) {
 	// result in accepted delivery to the mailbox.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl2@mox.example"
+		rcptTo := "mjl2@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage2)), strings.NewReader(deliverMessage2), false, false, false)
 		}
@@ -525,7 +525,7 @@ func TestSpam(t *testing.T) {
 	// Message should now be accepted.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -548,7 +548,7 @@ func TestSpam(t *testing.T) {
 	// Message should be refused for spammy content.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -584,35 +584,35 @@ func TestForward(t *testing.T) {
 				"127.0.0.10": {"forward.example."}, // For iprev check.
 			},
 		}
-		rcptTo := "mjl3@mox.example"
+		rcptTo := "mjl3@beacon.example"
 		if !forward {
 			// For SPF and DMARC pass, otherwise the test ends quickly.
 			resolver.TXT["bad.example."] = []string{"v=spf1 ip4:127.0.0.10 -all"}
 			resolver.TXT["good.example."] = []string{"v=spf1 ip4:127.0.0.10 -all"}
-			rcptTo = "mjl@mox.example" // Without IsForward rule.
+			rcptTo = "mjl@beacon.example" // Without IsForward rule.
 		}
 
-		ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/junk/mox.conf"), resolver)
+		ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/junk/beacon.conf"), resolver)
 		defer ts.close()
 
 		totalEvaluations := 0
 
 		var msgBad = strings.ReplaceAll(`From: <remote@bad.example>
-To: <mjl@mox.example>
+To: <mjl@beacon.example>
 Subject: test
 Message-Id: <bad@example.org>
 
 test email
 `, "\n", "\r\n")
 		var msgOK = strings.ReplaceAll(`From: <remote@good.example>
-To: <mjl@mox.example>
+To: <mjl@beacon.example>
 Subject: other
 Message-Id: <good@example.org>
 
 unrelated message.
 `, "\n", "\r\n")
 		var msgOK2 = strings.ReplaceAll(`From: <other@forward.example>
-To: <mjl@mox.example>
+To: <mjl@beacon.example>
 Subject: non-forward
 Message-Id: <regular@example.org>
 
@@ -682,7 +682,7 @@ happens to come from forwarding mail server.
 			// Ensure To header matches.
 			msg := msgOK2
 			if forward {
-				msg = strings.ReplaceAll(msg, "<mjl@mox.example>", "<mjl3@mox.example>")
+				msg = strings.ReplaceAll(msg, "<mjl@beacon.example>", "<mjl3@beacon.example>")
 			}
 
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(msg)), strings.NewReader(msg), false, false, false)
@@ -714,13 +714,13 @@ func TestDMARCSent(t *testing.T) {
 			"_dmarc.example.org.": {"v=DMARC1;p=reject;rua=mailto:dmarcrpt@example.org"},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/junk/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/junk/beacon.conf"), resolver)
 	defer ts.close()
 
 	// First check that DMARC policy rejects message and results in optional evaluation.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -739,7 +739,7 @@ func TestDMARCSent(t *testing.T) {
 	m := store.Message{
 		MailFrom:        "remote@test.example",
 		RcptToLocalpart: smtp.Localpart("mjl"),
-		RcptToDomain:    "mox.example",
+		RcptToDomain:    "beacon.example",
 		Flags:           store.Flags{Seen: true, Junk: true},
 		Size:            int64(len(deliverMessage)),
 	}
@@ -752,7 +752,7 @@ func TestDMARCSent(t *testing.T) {
 	// Baseline, message should be refused for spammy content.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -775,7 +775,7 @@ func TestDMARCSent(t *testing.T) {
 	resolver.TXT["example.org."] = []string{"v=spf1 ip4:127.0.0.1 -all"}
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -791,7 +791,7 @@ func TestDMARCSent(t *testing.T) {
 	resolver.TXT["example.org."] = []string{"v=spf1 ip4:127.0.0.10 -all"}
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -819,14 +819,14 @@ func TestBlocklistedSubjectpass(t *testing.T) {
 			"127.0.0.10": {"example.org."}, // For iprev check.
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), resolver)
 	ts.dnsbls = []dns.Domain{{ASCII: "dnsbl.example"}}
 	defer ts.close()
 
 	// Message should be refused softly (temporary error) due to DNSBL.
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -837,15 +837,15 @@ func TestBlocklistedSubjectpass(t *testing.T) {
 	})
 
 	// Set up subjectpass on account.
-	acc := mox.Conf.Dynamic.Accounts[ts.acc.Name]
+	acc := beacon.Conf.Dynamic.Accounts[ts.acc.Name]
 	acc.SubjectPass.Period = time.Hour
-	mox.Conf.Dynamic.Accounts[ts.acc.Name] = acc
+	beacon.Conf.Dynamic.Accounts[ts.acc.Name] = acc
 
 	// Message should be refused quickly (permanent error) due to DNSBL and Subjectkey.
 	var pass string
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -862,7 +862,7 @@ func TestBlocklistedSubjectpass(t *testing.T) {
 
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		passMessage := strings.Replace(deliverMessage, "Subject: test", "Subject: test "+pass, 1)
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(passMessage)), strings.NewReader(passMessage), false, false, false)
@@ -885,7 +885,7 @@ func TestDMARCReport(t *testing.T) {
 			"127.0.0.10": {"example.org."}, // For iprev check.
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/dmarcreport/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/dmarcreport/beacon.conf"), resolver)
 	defer ts.close()
 
 	run := func(report string, n int) {
@@ -896,7 +896,7 @@ func TestDMARCReport(t *testing.T) {
 			tcheck(t, err, "run")
 
 			mailFrom := "remote@example.org"
-			rcptTo := "mjl@mox.example"
+			rcptTo := "mjl@beacon.example"
 
 			msgb := &bytes.Buffer{}
 			_, xerr := fmt.Fprintf(msgb, "From: %s\r\nTo: %s\r\nSubject: dmarc report\r\nMIME-Version: 1.0\r\nContent-Type: text/xml\r\n\r\n", mailFrom, rcptTo)
@@ -920,7 +920,7 @@ func TestDMARCReport(t *testing.T) {
 	}
 
 	run(dmarcReport, 0)
-	run(strings.ReplaceAll(dmarcReport, "xmox.nl", "mox.example"), 1)
+	run(strings.ReplaceAll(dmarcReport, "xbeacon.nl", "beacon.example"), 1)
 
 	// We always store as an evaluation, but as optional for reports.
 	evals := checkEvaluationCount(t, 2)
@@ -940,7 +940,7 @@ const dmarcReport = `<?xml version="1.0" encoding="UTF-8" ?>
     </date_range>
   </report_metadata>
   <policy_published>
-    <domain>xmox.nl</domain>
+    <domain>xbeacon.nl</domain>
     <adkim>r</adkim>
     <aspf>r</aspf>
     <p>reject</p>
@@ -958,16 +958,16 @@ const dmarcReport = `<?xml version="1.0" encoding="UTF-8" ?>
       </policy_evaluated>
     </row>
     <identifiers>
-      <header_from>xmox.nl</header_from>
+      <header_from>xbeacon.nl</header_from>
     </identifiers>
     <auth_results>
       <dkim>
-        <domain>xmox.nl</domain>
+        <domain>xbeacon.nl</domain>
         <result>pass</result>
         <selector>testsel</selector>
       </dkim>
       <spf>
-        <domain>xmox.nl</domain>
+        <domain>xbeacon.nl</domain>
         <result>pass</result>
       </spf>
     </auth_results>
@@ -1013,7 +1013,7 @@ func TestTLSReport(t *testing.T) {
 			"127.0.0.10": {"example.org."}, // For iprev check.
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/tlsrpt/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/tlsrpt/beacon.conf"), resolver)
 	defer ts.close()
 
 	run := func(rcptTo, tlsrpt string, n int) {
@@ -1028,7 +1028,7 @@ func TestTLSReport(t *testing.T) {
 			tcheck(t, xerr, "write msg")
 			msg := msgb.String()
 
-			selectors := mox.DKIMSelectors(dkimConf)
+			selectors := beacon.DKIMSelectors(dkimConf)
 			headers, xerr := dkim.Sign(ctxbg, pkglog.Logger, "remote", dns.Domain{ASCII: "example.org"}, selectors, false, strings.NewReader(msg))
 			tcheck(t, xerr, "dkim sign")
 			msg = headers + msg
@@ -1046,11 +1046,11 @@ func TestTLSReport(t *testing.T) {
 		})
 	}
 
-	const tlsrpt = `{"organization-name":"Example.org","date-range":{"start-datetime":"2022-01-07T00:00:00Z","end-datetime":"2022-01-07T23:59:59Z"},"contact-info":"tlsrpt@example.org","report-id":"1","policies":[{"policy":{"policy-type":"no-policy-found","policy-domain":"xmox.nl"},"summary":{"total-successful-session-count":1,"total-failure-session-count":0}}]}`
+	const tlsrpt = `{"organization-name":"Example.org","date-range":{"start-datetime":"2022-01-07T00:00:00Z","end-datetime":"2022-01-07T23:59:59Z"},"contact-info":"tlsrpt@example.org","report-id":"1","policies":[{"policy":{"policy-type":"no-policy-found","policy-domain":"xbeacon.nl"},"summary":{"total-successful-session-count":1,"total-failure-session-count":0}}]}`
 
-	run("mjl@mox.example", tlsrpt, 0)
-	run("mjl@mox.example", strings.ReplaceAll(tlsrpt, "xmox.nl", "mox.example"), 1)
-	run("mjl@mailhost.mox.example", strings.ReplaceAll(tlsrpt, "xmox.nl", "mailhost.mox.example"), 2)
+	run("mjl@beacon.example", tlsrpt, 0)
+	run("mjl@beacon.example", strings.ReplaceAll(tlsrpt, "xbeacon.nl", "beacon.example"), 1)
+	run("mjl@mailhost.beacon.example", strings.ReplaceAll(tlsrpt, "xbeacon.nl", "mailhost.beacon.example"), 2)
 
 	// We always store as an evaluation, but as optional for reports.
 	evals := checkEvaluationCount(t, 3)
@@ -1060,7 +1060,7 @@ func TestTLSReport(t *testing.T) {
 }
 
 func TestRatelimitConnectionrate(t *testing.T) {
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), dns.MockResolver{})
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), dns.MockResolver{})
 	defer ts.close()
 
 	// We'll be creating 300 connections, no TLS and reduce noise.
@@ -1086,7 +1086,7 @@ func TestRatelimitConnectionrate(t *testing.T) {
 }
 
 func TestRatelimitAuth(t *testing.T) {
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), dns.MockResolver{})
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), dns.MockResolver{})
 	defer ts.close()
 
 	ts.submission = true
@@ -1127,7 +1127,7 @@ func TestRatelimitDelivery(t *testing.T) {
 			"127.0.0.10": {"example.org."},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), resolver)
 	defer ts.close()
 
 	orig := limitIPMasked1MessagesPerMinute
@@ -1138,7 +1138,7 @@ func TestRatelimitDelivery(t *testing.T) {
 
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -1167,7 +1167,7 @@ func TestRatelimitDelivery(t *testing.T) {
 	}()
 	ts.run(func(err error, client *smtpclient.Client) {
 		mailFrom := "remote@example.org"
-		rcptTo := "mjl@mox.example"
+		rcptTo := "mjl@beacon.example"
 		if err == nil {
 			err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(deliverMessage)), strings.NewReader(deliverMessage), false, false, false)
 		}
@@ -1182,7 +1182,7 @@ func TestRatelimitDelivery(t *testing.T) {
 }
 
 func TestNonSMTP(t *testing.T) {
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), dns.MockResolver{})
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), dns.MockResolver{})
 	defer ts.close()
 	ts.cid += 2
 
@@ -1195,7 +1195,7 @@ func TestNonSMTP(t *testing.T) {
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{fakeCert(ts.t)},
 		}
-		serve("test", ts.cid-2, dns.Domain{ASCII: "mox.example"}, tlsConfig, serverConn, ts.resolver, ts.submission, false, 100<<20, false, false, false, ts.dnsbls, 0)
+		serve("test", ts.cid-2, dns.Domain{ASCII: "beacon.example"}, tlsConfig, serverConn, ts.resolver, ts.submission, false, 100<<20, false, false, false, ts.dnsbls, 0)
 		close(serverdone)
 	}()
 
@@ -1226,10 +1226,10 @@ func TestNonSMTP(t *testing.T) {
 
 // Test limits on outgoing messages.
 func TestLimitOutgoing(t *testing.T) {
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpserversendlimit/mox.conf"), dns.MockResolver{})
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpserversendlimit/beacon.conf"), dns.MockResolver{})
 	defer ts.close()
 
-	ts.user = "mjl@mox.example"
+	ts.user = "mjl@beacon.example"
 	ts.pass = "testtest"
 	ts.submission = true
 
@@ -1240,7 +1240,7 @@ func TestLimitOutgoing(t *testing.T) {
 		t.Helper()
 		ts.run(func(err error, client *smtpclient.Client) {
 			t.Helper()
-			mailFrom := "mjl@mox.example"
+			mailFrom := "mjl@beacon.example"
 			if err == nil {
 				err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(submitMessage)), strings.NewReader(submitMessage), false, false, false)
 			}
@@ -1270,7 +1270,7 @@ func TestQuota(t *testing.T) {
 			"127.0.0.10": {"other.example."},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpserverquota/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpserverquota/beacon.conf"), resolver)
 	defer ts.close()
 
 	testDeliver := func(rcptTo string, expErr *smtpclient.Error) {
@@ -1288,7 +1288,7 @@ func TestQuota(t *testing.T) {
 		})
 	}
 
-	testDeliver("mjl@mox.example", &smtpclient.Error{Code: smtp.C452StorageFull, Secode: smtp.SeMailbox2Full2})
+	testDeliver("mjl@beacon.example", &smtpclient.Error{Code: smtp.C452StorageFull, Secode: smtp.SeMailbox2Full2})
 }
 
 // Test with catchall destination address.
@@ -1301,7 +1301,7 @@ func TestCatchall(t *testing.T) {
 			"127.0.0.10": {"other.example."},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpservercatchall/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpservercatchall/beacon.conf"), resolver)
 	defer ts.close()
 
 	testDeliver := func(rcptTo string, expErr *smtpclient.Error) {
@@ -1319,10 +1319,10 @@ func TestCatchall(t *testing.T) {
 		})
 	}
 
-	testDeliver("mjl@mox.example", nil)      // Exact match.
-	testDeliver("mjl+test@mox.example", nil) // Domain localpart catchall separator.
-	testDeliver("MJL+TEST@mox.example", nil) // Again, and case insensitive.
-	testDeliver("unknown@mox.example", nil)  // Catchall address, to account catchall.
+	testDeliver("mjl@beacon.example", nil)      // Exact match.
+	testDeliver("mjl+test@beacon.example", nil) // Domain localpart catchall separator.
+	testDeliver("MJL+TEST@beacon.example", nil) // Again, and case insensitive.
+	testDeliver("unknown@beacon.example", nil)  // Catchall address, to account catchall.
 
 	n, err := bstore.QueryDB[store.Message](ctxbg, ts.acc.DB).Count()
 	tcheck(t, err, "checking delivered messages")
@@ -1340,20 +1340,20 @@ func TestCatchall(t *testing.T) {
 func TestDKIMSign(t *testing.T) {
 	resolver := dns.MockResolver{
 		A: map[string][]string{
-			"mox.example.": {"127.0.0.10"}, // For mx check.
+			"beacon.example.": {"127.0.0.10"}, // For mx check.
 		},
 		PTR: map[string][]string{
-			"127.0.0.10": {"mox.example."},
+			"127.0.0.10": {"beacon.example."},
 		},
 	}
 
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), resolver)
 	defer ts.close()
 
 	// Set DKIM signing config.
 	var gen byte
 	genDKIM := func(domain string) string {
-		dom, _ := mox.Conf.Domain(dns.Domain{ASCII: domain})
+		dom, _ := beacon.Conf.Domain(dns.Domain{ASCII: domain})
 
 		privkey := make([]byte, ed25519.SeedSize) // Fake key, don't use for real.
 		gen++
@@ -1369,22 +1369,22 @@ func TestDKIMSign(t *testing.T) {
 			Selectors: map[string]config.Selector{"testsel": sel},
 			Sign:      []string{"testsel"},
 		}
-		mox.Conf.Dynamic.Domains[domain] = dom
+		beacon.Conf.Dynamic.Domains[domain] = dom
 		pubkey := sel.Key.Public().(ed25519.PublicKey)
 		return "v=DKIM1;k=ed25519;p=" + base64.StdEncoding.EncodeToString(pubkey)
 	}
 
-	dkimtxt := genDKIM("mox.example")
-	dkimtxt2 := genDKIM("mox2.example")
+	dkimtxt := genDKIM("beacon.example")
+	dkimtxt2 := genDKIM("beacon2.example")
 
 	// DKIM verify needs to find the key.
 	resolver.TXT = map[string][]string{
-		"testsel._domainkey.mox.example.":  {dkimtxt},
-		"testsel._domainkey.mox2.example.": {dkimtxt2},
+		"testsel._domainkey.beacon.example.":  {dkimtxt},
+		"testsel._domainkey.beacon2.example.": {dkimtxt2},
 	}
 
 	ts.submission = true
-	ts.user = "mjl@mox.example"
+	ts.user = "mjl@beacon.example"
 	ts.pass = "testtest"
 
 	n := 0
@@ -1396,7 +1396,7 @@ func TestDKIMSign(t *testing.T) {
 			msg := strings.ReplaceAll(fmt.Sprintf(`From: <%s>
 To: <remote@example.org>
 Subject: test
-Message-Id: <test@mox.example>
+Message-Id: <test@beacon.example>
 
 test email
 `, msgFrom), "\n", "\r\n")
@@ -1425,8 +1425,8 @@ test email
 		})
 	}
 
-	testSubmit("mjl@mox.example", "mjl@mox.example")
-	testSubmit("mjl@mox.example", "mjl@mox2.example") // DKIM signature will be for mox2.example.
+	testSubmit("mjl@beacon.example", "mjl@beacon.example")
+	testSubmit("mjl@beacon.example", "mjl@beacon2.example") // DKIM signature will be for beacon2.example.
 }
 
 // Test to postmaster addresses.
@@ -1439,7 +1439,7 @@ func TestPostmaster(t *testing.T) {
 			"127.0.0.10": {"other.example."},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/postmaster/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/postmaster/beacon.conf"), resolver)
 	defer ts.close()
 
 	testDeliver := func(rcptTo string, expErr *smtpclient.Error) {
@@ -1458,8 +1458,8 @@ func TestPostmaster(t *testing.T) {
 	}
 
 	testDeliver("postmaster", nil)                  // Plain postmaster address without domain.
-	testDeliver("postmaster@host.mox.example", nil) // Postmaster address with configured mail server hostname.
-	testDeliver("postmaster@mox.example", nil)      // Postmaster address without explicitly configured destination.
+	testDeliver("postmaster@host.beacon.example", nil) // Postmaster address with configured mail server hostname.
+	testDeliver("postmaster@beacon.example", nil)      // Postmaster address without explicitly configured destination.
 	testDeliver("postmaster@unknown.example", &smtpclient.Error{Code: smtp.C550MailboxUnavail, Secode: smtp.SeAddr1UnknownDestMailbox1})
 }
 
@@ -1473,7 +1473,7 @@ func TestEmptylocalpart(t *testing.T) {
 			"127.0.0.10": {"other.example."},
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), resolver)
 	defer ts.close()
 
 	testDeliver := func(rcptTo string, expErr *smtpclient.Error) {
@@ -1482,7 +1482,7 @@ func TestEmptylocalpart(t *testing.T) {
 			t.Helper()
 
 			mailFrom := `""@other.example`
-			msg := strings.ReplaceAll(deliverMessage, "To: <mjl@mox.example>", `To: <""@mox.example>`)
+			msg := strings.ReplaceAll(deliverMessage, "To: <mjl@beacon.example>", `To: <""@beacon.example>`)
 			if err == nil {
 				err = client.Deliver(ctxbg, mailFrom, rcptTo, int64(len(msg)), strings.NewReader(msg), false, false, false)
 			}
@@ -1493,54 +1493,54 @@ func TestEmptylocalpart(t *testing.T) {
 		})
 	}
 
-	testDeliver(`""@mox.example`, nil)
+	testDeliver(`""@beacon.example`, nil)
 }
 
 // Test handling REQUIRETLS and TLS-Required: No.
 func TestRequireTLS(t *testing.T) {
 	resolver := dns.MockResolver{
 		A: map[string][]string{
-			"mox.example.": {"127.0.0.10"}, // For mx check.
+			"beacon.example.": {"127.0.0.10"}, // For mx check.
 		},
 		PTR: map[string][]string{
-			"127.0.0.10": {"mox.example."},
+			"127.0.0.10": {"beacon.example."},
 		},
 	}
 
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtp/beacon.conf"), resolver)
 	defer ts.close()
 
 	ts.submission = true
 	ts.requiretls = true
-	ts.user = "mjl@mox.example"
+	ts.user = "mjl@beacon.example"
 	ts.pass = "testtest"
 
 	no := false
 	yes := true
 
-	msg0 := strings.ReplaceAll(`From: <mjl@mox.example>
+	msg0 := strings.ReplaceAll(`From: <mjl@beacon.example>
 To: <remote@example.org>
 Subject: test
-Message-Id: <test@mox.example>
+Message-Id: <test@beacon.example>
 TLS-Required: No
 
 test email
 `, "\n", "\r\n")
 
-	msg1 := strings.ReplaceAll(`From: <mjl@mox.example>
+	msg1 := strings.ReplaceAll(`From: <mjl@beacon.example>
 To: <remote@example.org>
 Subject: test
-Message-Id: <test@mox.example>
+Message-Id: <test@beacon.example>
 TLS-Required: No
 TLS-Required: bogus
 
 test email
 `, "\n", "\r\n")
 
-	msg2 := strings.ReplaceAll(`From: <mjl@mox.example>
+	msg2 := strings.ReplaceAll(`From: <mjl@beacon.example>
 To: <remote@example.org>
 Subject: test
-Message-Id: <test@mox.example>
+Message-Id: <test@beacon.example>
 
 test email
 `, "\n", "\r\n")
@@ -1552,7 +1552,7 @@ test email
 
 			rcptTo := "remote@example.org"
 			if err == nil {
-				err = client.Deliver(ctxbg, "mjl@mox.example", rcptTo, int64(len(msg)), strings.NewReader(msg), false, false, requiretls)
+				err = client.Deliver(ctxbg, "mjl@beacon.example", rcptTo, int64(len(msg)), strings.NewReader(msg), false, false, requiretls)
 			}
 			tcheck(t, err, "deliver")
 
@@ -1580,7 +1580,7 @@ test email
 
 		rcptTo := "remote@example.org"
 		if err == nil {
-			err = client.Deliver(ctxbg, "mjl@mox.example", rcptTo, int64(len(msg0)), strings.NewReader(msg0), false, false, true)
+			err = client.Deliver(ctxbg, "mjl@beacon.example", rcptTo, int64(len(msg0)), strings.NewReader(msg0), false, false, true)
 		}
 		if err == nil {
 			t.Fatalf("delivered with requiretls to server without requiretls")
@@ -1600,7 +1600,7 @@ func TestSmuggle(t *testing.T) {
 			"127.0.0.10": {"example.org."}, // For iprev check.
 		},
 	}
-	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpsmuggle/mox.conf"), resolver)
+	ts := newTestServer(t, filepath.FromSlash("../testdata/smtpsmuggle/beacon.conf"), resolver)
 	ts.tlsmode = smtpclient.TLSSkip
 	defer ts.close()
 
@@ -1610,10 +1610,10 @@ func TestSmuggle(t *testing.T) {
 		ts.runRaw(func(conn net.Conn) {
 			t.Helper()
 
-			ourHostname := mox.Conf.Static.HostnameDomain
-			remoteHostname := dns.Domain{ASCII: "mox.example"}
+			ourHostname := beacon.Conf.Static.HostnameDomain
+			remoteHostname := dns.Domain{ASCII: "beacon.example"}
 			opts := smtpclient.Opts{
-				RootCAs: mox.Conf.Static.TLS.CertPool,
+				RootCAs: beacon.Conf.Static.TLS.CertPool,
 			}
 			log := pkglog.WithCid(ts.cid - 1)
 			_, err := smtpclient.New(ctxbg, log.Logger, conn, ts.tlsmode, ts.tlspkix, ourHostname, remoteHostname, opts)
@@ -1639,7 +1639,7 @@ func TestSmuggle(t *testing.T) {
 
 			write("MAIL FROM:<remote@example.org>\r\n")
 			readPrefixLine("2")
-			write("RCPT TO:<mjl@mox.example>\r\n")
+			write("RCPT TO:<mjl@beacon.example>\r\n")
 			readPrefixLine("2")
 
 			write("DATA\r\n")

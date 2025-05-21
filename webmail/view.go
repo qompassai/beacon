@@ -25,15 +25,15 @@ import (
 	"github.com/mjl-/bstore"
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
 // Request is a request to an SSE connection to send messages, either for a new
@@ -589,7 +589,7 @@ func serveEvents(ctx context.Context, log mlog.Log, w http.ResponseWriter, r *ht
 	// We'll be sending quite a bit of message data (text) in JSON (plenty duplicate
 	// keys), so should be quite compressible.
 	var out writeFlusher
-	gz := mox.AcceptsGzip(r)
+	gz := beacon.AcceptsGzip(r)
 	if gz {
 		h.Set("Content-Encoding", "gzip")
 		out, _ = gzip.NewWriterLevel(w, gzip.BestSpeed)
@@ -616,7 +616,7 @@ func serveEvents(ctx context.Context, log mlog.Log, w http.ResponseWriter, r *ht
 	accConf, _ := acc.Conf()
 	loginAddr, err := smtp.ParseAddress(address)
 	xcheckf(ctx, err, "parsing login address")
-	_, _, dest, err := mox.FindAccount(loginAddr.Localpart, loginAddr.Domain, false)
+	_, _, dest, err := beacon.FindAccount(loginAddr.Localpart, loginAddr.Domain, false)
 	xcheckf(ctx, err, "looking up destination for login address")
 	loginName := accConf.FullName
 	if dest.FullName != "" {
@@ -724,12 +724,12 @@ func serveEvents(ctx context.Context, log mlog.Log, w http.ResponseWriter, r *ht
 	// Per-domain localpart config so webclient can decide if an address belongs to the account.
 	domainAddressConfigs := map[string]DomainAddressConfig{}
 	for _, a := range addresses {
-		dom, _ := mox.Conf.Domain(a.Domain)
+		dom, _ := beacon.Conf.Domain(a.Domain)
 		domainAddressConfigs[a.Domain.ASCII] = DomainAddressConfig{dom.LocalpartCatchallSeparator, dom.LocalpartCaseSensitive}
 	}
 
 	// Write first event, allowing client to fill its UI with mailboxes.
-	start := EventStart{sse.ID, loginAddress, addresses, domainAddressConfigs, mailbox.Name, mbl, accConf.RejectsMailbox, moxvar.Version}
+	start := EventStart{sse.ID, loginAddress, addresses, domainAddressConfigs, mailbox.Name, mbl, accConf.RejectsMailbox, beaconvar.Version}
 	writer.xsendEvent(ctx, log, "start", start)
 
 	// The goroutine doing the querying will send messages on these channels, which
@@ -934,7 +934,7 @@ func serveEvents(ctx context.Context, log mlog.Log, w http.ResponseWriter, r *ht
 		}
 
 		select {
-		case <-mox.Shutdown.Done():
+		case <-beacon.Shutdown.Done():
 			writer.xsendEvent(ctx, log, "fatalErr", "server is shutting down")
 			// Work around go vet, it doesn't see defer cancelDrain.
 			if reqctxcancel != nil {
@@ -971,7 +971,7 @@ func serveEvents(ctx context.Context, log mlog.Log, w http.ResponseWriter, r *ht
 			if ve.RequestID != v.Request.ID || ve.ViewID != v.Request.ViewID {
 				panic(fmt.Sprintf("received err for view,request id %d,%d instead of %d,%d", ve.ViewID, ve.RequestID, v.Request.ViewID, v.Request.ID))
 			}
-			if errors.Is(ve.err, context.Canceled) || moxio.IsClosed(ve.err) {
+			if errors.Is(ve.err, context.Canceled) || beaconio.IsClosed(ve.err) {
 				// Work around go vet, it doesn't see defer cancelDrain.
 				if reqctxcancel != nil {
 					reqctxcancel()

@@ -25,28 +25,28 @@ import (
 
 	"github.com/mjl-/sconf"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/junk"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtpserver"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/junk"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtpserver"
+	"github.com/qompassai/beacon/store"
 )
 
 func cmdLocalserve(c *cmd) {
 	c.help = `Start a local SMTP/IMAP server that accepts all messages, useful when testing/developing software that sends email.
 
-Localserve starts mox with a configuration suitable for local email-related
+Localserve starts beacon with a configuration suitable for local email-related
 software development/testing. It listens for SMTP/Submission(s), IMAP(s) and
 HTTP(s), on the regular port numbers + 1000.
 
 Data is stored in the system user's configuration directory under
-"mox-localserve", e.g. $HOME/.config/mox-localserve/ on linux, but can be
+"beacon-localserve", e.g. $HOME/.config/beacon-localserve/ on linux, but can be
 overridden with the -dir flag. If the directory does not yet exist, it is
 automatically initialized with configuration files, an account with email
-address mox@localhost and password moxmoxmox, and a newly generated self-signed
+address beacon@localhost and password beaconbeaconbeacon, and a newly generated self-signed
 TLS certificate.
 
 All incoming email to any address is accepted (if checks pass), unless the
@@ -69,7 +69,7 @@ during those commands instead of during "data".
 
 	var dir, ip string
 	var initOnly bool
-	c.flag.StringVar(&dir, "dir", filepath.Join(userConfDir, "mox-localserve"), "configuration storage directory")
+	c.flag.StringVar(&dir, "dir", filepath.Join(userConfDir, "beacon-localserve"), "configuration storage directory")
 	c.flag.StringVar(&ip, "ip", "", "serve on this ip instead of default 127.0.0.1 and ::1. only used when writing configuration, at first launch.")
 	c.flag.BoolVar(&initOnly, "initonly", false, "write configuration files and exit")
 	args := c.Parse()
@@ -78,16 +78,16 @@ during those commands instead of during "data".
 	}
 
 	log := c.log
-	mox.FilesImmediate = true
+	beacon.FilesImmediate = true
 
 	if initOnly {
 		if _, err := os.Stat(dir); err == nil {
 			log.Print("warning: directory for configuration files already exists, continuing")
 		}
-		log.Print("creating mox localserve config", slog.String("dir", dir))
+		log.Print("creating beacon localserve config", slog.String("dir", dir))
 		err := writeLocalConfig(log, dir, ip)
 		if err != nil {
-			log.Fatalx("creating mox localserve config", err, slog.String("dir", dir))
+			log.Fatalx("creating beacon localserve config", err, slog.String("dir", dir))
 		}
 		return
 	}
@@ -97,12 +97,12 @@ during those commands instead of during "data".
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 		err := writeLocalConfig(log, dir, ip)
 		if err != nil {
-			log.Fatalx("creating mox localserve config", err, slog.String("dir", dir))
+			log.Fatalx("creating beacon localserve config", err, slog.String("dir", dir))
 		}
 	} else if err != nil {
 		log.Fatalx("stat config dir", err, slog.String("dir", dir))
 	} else if err := localLoadConfig(log, dir); err != nil {
-		log.Fatalx("loading mox localserve config (hint: when creating a new config with -dir, the directory must not yet exist)", err, slog.String("dir", dir))
+		log.Fatalx("loading beacon localserve config (hint: when creating a new config with -dir, the directory must not yet exist)", err, slog.String("dir", dir))
 	} else if ip != "" {
 		log.Fatal("can only use -ip when writing a new config file")
 	} else {
@@ -110,8 +110,8 @@ during those commands instead of during "data".
 	}
 
 	if level, ok := mlog.Levels[loglevel]; loglevel != "" && ok {
-		mox.Conf.Log[""] = level
-		mlog.SetConfig(mox.Conf.Log)
+		beacon.Conf.Log[""] = level
+		mlog.SetConfig(beacon.Conf.Log)
 	} else if loglevel != "" && !ok {
 		log.Fatal("unknown loglevel", slog.String("loglevel", loglevel))
 	}
@@ -129,11 +129,11 @@ during those commands instead of during "data".
 			log.Fatalx("read random recvid key", err)
 		}
 	}
-	if err := mox.ReceivedIDInit(recvidbuf[:16], recvidbuf[16:]); err != nil {
+	if err := beacon.ReceivedIDInit(recvidbuf[:16], recvidbuf[16:]); err != nil {
 		log.Fatalx("init receivedid", err)
 	}
 
-	// Make smtp server accept all email and deliver to account "mox".
+	// Make smtp server accept all email and deliver to account "beacon".
 	smtpserver.Localserve = true
 	// Tell queue it shouldn't be queuing/delivering.
 	queue.Localserve = true
@@ -143,12 +143,12 @@ during those commands instead of during "data".
 	const sendTLSReports = false
 	const skipForkExec = true
 	if err := start(mtastsdbRefresher, sendDMARCReports, sendTLSReports, skipForkExec); err != nil {
-		log.Fatalx("starting mox", err)
+		log.Fatalx("starting beacon", err)
 	}
-	golog.Printf("mox, version %s, %s %s/%s", moxvar.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	golog.Printf("beacon, version %s, %s %s/%s", beaconvar.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	golog.Print("")
-	golog.Printf("the default user is mox@localhost, with password moxmoxmox")
-	golog.Printf("the default admin password is moxadmin")
+	golog.Printf("the default user is beacon@localhost, with password beaconbeaconbeacon")
+	golog.Printf("the default admin password is beaconadmin")
 	golog.Printf("port numbers are those common for the services + 1000")
 	golog.Printf("tls uses generated self-signed certificate %s", filepath.Join(dir, "localhost.crt"))
 	golog.Printf("all incoming email to any address is accepted (if checks pass), unless the recipient localpart ends with:")
@@ -161,15 +161,15 @@ during those commands instead of during "data".
 	golog.Printf(`if the localpart begins with "mailfrom" or "rcptto", the error is returned during those commands instead of during "data"`)
 	golog.Print("")
 	golog.Print(" smtp://localhost:1025                           - receive email")
-	golog.Print("smtps://mox%40localhost:moxmoxmox@localhost:1465 - send email")
-	golog.Print(" smtp://mox%40localhost:moxmoxmox@localhost:1587 - send email (without tls)")
-	golog.Print("imaps://mox%40localhost:moxmoxmox@localhost:1993 - read email")
-	golog.Print(" imap://mox%40localhost:moxmoxmox@localhost:1143 - read email (without tls)")
-	golog.Print("https://localhost:1443/account/                  - account https (email mox@localhost, password moxmoxmox)")
+	golog.Print("smtps://beacon%40localhost:beaconbeaconbeacon@localhost:1465 - send email")
+	golog.Print(" smtp://beacon%40localhost:beaconbeaconbeacon@localhost:1587 - send email (without tls)")
+	golog.Print("imaps://beacon%40localhost:beaconbeaconbeacon@localhost:1993 - read email")
+	golog.Print(" imap://beacon%40localhost:beaconbeaconbeacon@localhost:1143 - read email (without tls)")
+	golog.Print("https://localhost:1443/account/                  - account https (email beacon@localhost, password beaconbeaconbeacon)")
 	golog.Print(" http://localhost:1080/account/                  - account http (without tls)")
-	golog.Print("https://localhost:1443/webmail/                  - webmail https (email mox@localhost, password moxmoxmox)")
+	golog.Print("https://localhost:1443/webmail/                  - webmail https (email beacon@localhost, password beaconbeaconbeacon)")
 	golog.Print(" http://localhost:1080/webmail/                  - webmail http (without tls)")
-	golog.Print("https://localhost:1443/admin/                    - admin https (password moxadmin)")
+	golog.Print("https://localhost:1443/admin/                    - admin https (password beaconadmin)")
 	golog.Print(" http://localhost:1080/admin/                    - admin http (without tls)")
 	golog.Print("")
 	if existingConfig {
@@ -179,7 +179,7 @@ during those commands instead of during "data".
 		golog.Printf("serving from newly created config dir %s/", dir)
 	}
 
-	ctlpath := mox.DataDirPath("ctl")
+	ctlpath := beacon.DataDirPath("ctl")
 	_ = os.Remove(ctlpath)
 	ctl, err := net.Listen("unix", ctlpath)
 	if err != nil {
@@ -192,8 +192,8 @@ during those commands instead of during "data".
 				log.Printx("accept for ctl", err)
 				continue
 			}
-			cid := mox.Cid()
-			ctx := context.WithValue(mox.Context, mlog.CidKey, cid)
+			cid := beacon.Cid()
+			ctx := context.WithValue(beacon.Context, mlog.CidKey, cid)
 			go servectl(ctx, log.WithCid(cid), conn, func() { shutdown(log) })
 		}
 	}()
@@ -241,7 +241,7 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 	privBlock := &pem.Block{
 		Type: "PRIVATE KEY",
 		Headers: map[string]string{
-			"Note": "ECDSA key generated by mox localserve for self-signed certificate.",
+			"Note": "ECDSA key generated by beacon localserve for self-signed certificate.",
 		},
 		Bytes: privKeyDER,
 	}
@@ -258,10 +258,10 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(4 * 365 * 24 * time.Hour),
 		Issuer: pkix.Name{
-			Organization: []string{"mox localserve"},
+			Organization: []string{"beacon localserve"},
 		},
 		Subject: pkix.Name{
-			Organization: []string{"mox localserve"},
+			Organization: []string{"beacon localserve"},
 			CommonName:   "localhost",
 		},
 	}
@@ -280,13 +280,13 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 	xcheck(err, "writing self-signed certificate")
 
 	// Write adminpasswd.
-	adminpw := "moxadmin"
+	adminpw := "beaconadmin"
 	adminpwhash, err := bcrypt.GenerateFromPassword([]byte(adminpw), bcrypt.DefaultCost)
 	xcheck(err, "generating hash for admin password")
 	err = os.WriteFile(filepath.Join(dir, "adminpasswd"), adminpwhash, 0660)
 	xcheck(err, "writing adminpasswd file")
 
-	// Write mox.conf.
+	// Write beacon.conf.
 	ips := []string{"127.0.0.1", "::1"}
 	if ip != "" {
 		ips = []string{ip}
@@ -358,21 +358,21 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 		CertFiles          []string `sconf:"optional"`
 	}{true, []string{"localhost.crt"}}
 	static.TLS.CA = &tlsca
-	static.Postmaster.Account = "mox"
+	static.Postmaster.Account = "beacon"
 	static.Postmaster.Mailbox = "Inbox"
 
-	var moxconfBuf bytes.Buffer
-	err = sconf.WriteDocs(&moxconfBuf, static)
-	xcheck(err, "making mox.conf")
+	var beaconconfBuf bytes.Buffer
+	err = sconf.WriteDocs(&beaconconfBuf, static)
+	xcheck(err, "making beacon.conf")
 
-	err = os.WriteFile(filepath.Join(dir, "mox.conf"), moxconfBuf.Bytes(), 0660)
-	xcheck(err, "writing mox.conf")
+	err = os.WriteFile(filepath.Join(dir, "beacon.conf"), beaconconfBuf.Bytes(), 0660)
+	xcheck(err, "writing beacon.conf")
 
 	// Write domains.conf.
 	acc := config.Account{
 		RejectsMailbox: "Rejects",
 		Destinations: map[string]config.Destination{
-			"mox@localhost": {},
+			"beacon@localhost": {},
 		},
 	}
 	acc.AutomaticJunkFlags.Enabled = true
@@ -396,7 +396,7 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 			},
 		},
 		Accounts: map[string]config.Account{
-			"mox": acc,
+			"beacon": acc,
 		},
 		WebHandlers: []config.WebHandler{
 			{
@@ -431,9 +431,9 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 	xcheck(err, "loading config")
 
 	// Set password on account.
-	a, _, err := store.OpenEmail(log, "mox@localhost")
+	a, _, err := store.OpenEmail(log, "beacon@localhost")
 	xcheck(err, "opening account to set password")
-	password := "moxmoxmox"
+	password := "beaconbeaconbeacon"
 	err = a.SetPassword(log, password)
 	xcheck(err, "setting password")
 	err = a.Close()
@@ -444,9 +444,9 @@ func writeLocalConfig(log mlog.Log, dir, ip string) (rerr error) {
 }
 
 func localLoadConfig(log mlog.Log, dir string) error {
-	mox.ConfigStaticPath = filepath.Join(dir, "mox.conf")
-	mox.ConfigDynamicPath = filepath.Join(dir, "domains.conf")
-	errs := mox.LoadConfig(context.Background(), log, true, false)
+	beacon.ConfigStaticPath = filepath.Join(dir, "beacon.conf")
+	beacon.ConfigDynamicPath = filepath.Join(dir, "domains.conf")
+	errs := beacon.LoadConfig(context.Background(), log, true, false)
 	if len(errs) > 1 {
 		log.Error("loading config generated config file: multiple errors")
 		for _, err := range errs {

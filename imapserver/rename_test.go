@@ -3,7 +3,7 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 // todo: check that UIDValidity is indeed updated properly.
@@ -14,8 +14,8 @@ func TestRename(t *testing.T) {
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 
 	tc.transactf("bad", "rename")      // Missing parameters.
 	tc.transactf("bad", "rename x")    // Missing destination.

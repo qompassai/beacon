@@ -1,7 +1,7 @@
 package message
 
 import (
-	"github.com/mjl-/mox/dns"
+	"github.com/qompassai/beacon/dns"
 )
 
 // HeaderCommentDomain returns domain name optionally followed by a message

@@ -12,11 +12,11 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtasts"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtasts"
 )
 
 func refresh() int {
@@ -30,15 +30,15 @@ func refresh() int {
 	for {
 		ticker.Reset(interval)
 
-		log := mlog.New("mtastsdb", nil).WithCid(mox.Cid())
-		n, err := refresh1(mox.Context, log, dns.StrictResolver{Pkg: "mtastsdb"}, time.Sleep)
+		log := mlog.New("mtastsdb", nil).WithCid(beacon.Cid())
+		n, err := refresh1(beacon.Context, log, dns.StrictResolver{Pkg: "mtastsdb"}, time.Sleep)
 		log.Check(err, "periodic refresh of cached mtasts policies")
 		if n > 0 {
 			refreshed += n
 		}
 
 		select {
-		case <-mox.Shutdown.Done():
+		case <-beacon.Shutdown.Done():
 			return refreshed
 		case <-ticker.C:
 		}

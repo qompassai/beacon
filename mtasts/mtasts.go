@@ -24,10 +24,10 @@ import (
 
 	"github.com/mjl-/adns"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/stub"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/stub"
 )
 
 var (
@@ -301,7 +301,7 @@ func FetchPolicy(ctx context.Context, elog *slog.Logger, domain dns.Domain) (pol
 	// just always whatever is sent as UTF-8. ../rfc/8461:367
 
 	// ../rfc/8461:570
-	buf, err := io.ReadAll(&moxio.LimitReader{R: resp.Body, Limit: 64 * 1024})
+	buf, err := io.ReadAll(&beaconio.LimitReader{R: resp.Body, Limit: 64 * 1024})
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: reading policy: %s", ErrPolicySyntax, err)
 	}

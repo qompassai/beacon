@@ -12,8 +12,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
 )
 
 func TestUpdates(t *testing.T) {
@@ -21,7 +21,7 @@ func TestUpdates(t *testing.T) {
 
 	resolver := dns.MockResolver{
 		TXT: map[string][]string{
-			"_updates.mox.example.":        {"v=UPDATES0; l=v0.0.1"},
+			"_updates.beacon.example.":        {"v=UPDATES0; l=v0.0.1"},
 			"_updates.one.example.":        {"other", "v=UPDATES0; l=v0.0.1-rc1"},
 			"_updates.dup.example.":        {"v=UPDATES0; l=v0.0.1", "v=UPDATES0; l=v0.0.1"},
 			"_updates.other.example.":      {"other"},
@@ -51,7 +51,7 @@ func TestUpdates(t *testing.T) {
 		}
 	}
 
-	lookup("mox.example", "v0.0.1", &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil)
+	lookup("beacon.example", "v0.0.1", &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil)
 	lookup("one.example", "v0.0.1", &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil)
 	lookup("absent.example", "", nil, ErrNoRecord)
 	lookup("dup.example", "", nil, ErrMultipleRecords)
@@ -148,8 +148,8 @@ func TestUpdates(t *testing.T) {
 		}
 	}
 
-	check("mox.example", Version{0, 0, 1}, "", 0, pub, Version{0, 0, 1}, &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil, nil)
-	check("mox.example", Version{0, 0, 0}, "", 200, pub, Version{0, 0, 1}, &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, &changelog, nil)
-	check("mox.example", Version{0, 0, 0}, "", 0, pub, Version{0, 0, 1}, &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil, ErrChangelogFetch)
+	check("beacon.example", Version{0, 0, 1}, "", 0, pub, Version{0, 0, 1}, &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil, nil)
+	check("beacon.example", Version{0, 0, 0}, "", 200, pub, Version{0, 0, 1}, &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, &changelog, nil)
+	check("beacon.example", Version{0, 0, 0}, "", 0, pub, Version{0, 0, 1}, &Record{Version: "UPDATES0", Latest: Version{0, 0, 1}}, nil, ErrChangelogFetch)
 	check("absent.example", Version{0, 0, 1}, "", 200, pub, Version{}, nil, nil, ErrNoRecord)
 }

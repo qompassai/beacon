@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // From extracts the address in the From-header.

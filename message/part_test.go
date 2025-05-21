@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 var pkglog = mlog.New("message", nil)
@@ -131,7 +131,7 @@ func TestBareCR(t *testing.T) {
 	tcompare(t, string(buf), expBody)
 }
 
-var basicMsg = strings.ReplaceAll(`From: <mjl@mox.example>
+var basicMsg = strings.ReplaceAll(`From: <mjl@beacon.example>
 Content-Type: text/plain
 Content-Transfer-Encoding: base64
 

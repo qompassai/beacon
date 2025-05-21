@@ -1131,7 +1131,7 @@
 	"Structs": [
 		{
 			"Name": "CheckResult",
-			"Docs": "CheckResult is the analysis of a domain, its actual configuration (DNS, TLS,\nconnectivity) and the mox configuration. It includes configuration instructions\n(e.g. DNS records), and warnings and errors encountered.",
+			"Docs": "CheckResult is the analysis of a domain, its actual configuration (DNS, TLS,\nconnectivity) and the beacon configuration. It includes configuration instructions\n(e.g. DNS records), and warnings and errors encountered.",
 			"Fields": [
 				{
 					"Name": "Domain",

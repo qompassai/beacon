@@ -24,8 +24,8 @@ import (
 	"golang.org/x/exp/slog"
 	"golang.org/x/text/encoding/ianaindex"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // Pedantic enables stricter parsing.

@@ -13,9 +13,9 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 var (
 	metricEvaluated = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_dmarcdb_policy_evaluated_total",
+			Name: "beacon_dmarcdb_policy_evaluated_total",
 			Help: "Number of policy evaluations.",
 		},
 		// We only register validated domains for which we have a config.
@@ -35,14 +35,14 @@ var (
 	)
 	metricDKIM = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_dmarcdb_dkim_result_total",
+			Name: "beacon_dmarcdb_dkim_result_total",
 			Help: "Number of DKIM results.",
 		},
 		[]string{"result"},
 	)
 	metricSPF = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_dmarcdb_spf_result_total",
+			Name: "beacon_dmarcdb_spf_result_total",
 			Help: "Number of SPF results.",
 		},
 		[]string{"result"},
@@ -63,7 +63,7 @@ func reportsDB(ctx context.Context) (rdb *bstore.DB, rerr error) {
 	reportsMutex.Lock()
 	defer reportsMutex.Unlock()
 	if ReportsDB == nil {
-		p := mox.DataDirPath("dmarcrpt.db")
+		p := beacon.DataDirPath("dmarcrpt.db")
 		os.MkdirAll(filepath.Dir(p), 0770)
 		db, err := bstore.Open(ctx, p, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, ReportsDBTypes...)
 		if err != nil {

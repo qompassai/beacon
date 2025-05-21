@@ -15,7 +15,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 // MsgSource is implemented by readers for mailbox file formats.

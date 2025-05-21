@@ -12,10 +12,10 @@ import (
 	"github.com/mjl-/bstore"
 	"github.com/mjl-/sconf"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 var ctxbg = context.Background()
@@ -31,8 +31,8 @@ func tcheck(t *testing.T, err error, msg string) {
 func TestMailbox(t *testing.T) {
 	log := mlog.New("store", nil)
 	os.RemoveAll("../testdata/store/data")
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/store/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/store/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	acc, err := OpenAccount(log, "mjl")
 	tcheck(t, err, "open account")
 	defer func() {
@@ -52,7 +52,7 @@ func TestMailbox(t *testing.T) {
 		t.Fatalf("writing to temp message: %s", err)
 	}
 
-	msgPrefix := []byte("From: <mjl@mox.example\r\nTo: <mjl@mox.example>\r\nCc: <mjl@mox.example>Subject: test\r\nMessage-Id: <m01@mox.example>\r\n\r\n")
+	msgPrefix := []byte("From: <mjl@beacon.example\r\nTo: <mjl@beacon.example>\r\nCc: <mjl@beacon.example>Subject: test\r\nMessage-Id: <m01@beacon.example>\r\n\r\n")
 	msgPrefixCatchall := []byte("Subject: catchall\r\n\r\n")
 	m := Message{
 		Received:  time.Now(),
@@ -218,30 +218,30 @@ func TestMailbox(t *testing.T) {
 			t.Fatalf("no space for more rejects")
 		}
 
-		acc.RejectsRemove(log, "Rejects", "m01@mox.example")
+		acc.RejectsRemove(log, "Rejects", "m01@beacon.example")
 	})
 
 	// Run the auth tests twice for possible cache effects.
 	for i := 0; i < 2; i++ {
-		_, err := OpenEmailAuth(log, "mjl@mox.example", "bogus")
+		_, err := OpenEmailAuth(log, "mjl@beacon.example", "bogus")
 		if err != ErrUnknownCredentials {
 			t.Fatalf("got %v, expected ErrUnknownCredentials", err)
 		}
 	}
 
 	for i := 0; i < 2; i++ {
-		acc2, err := OpenEmailAuth(log, "mjl@mox.example", "testtest")
+		acc2, err := OpenEmailAuth(log, "mjl@beacon.example", "testtest")
 		tcheck(t, err, "open for email with auth")
 		err = acc2.Close()
 		tcheck(t, err, "close account")
 	}
 
-	acc2, err := OpenEmailAuth(log, "other@mox.example", "testtest")
+	acc2, err := OpenEmailAuth(log, "other@beacon.example", "testtest")
 	tcheck(t, err, "open for email with auth")
 	err = acc2.Close()
 	tcheck(t, err, "close account")
 
-	_, err = OpenEmailAuth(log, "bogus@mox.example", "testtest")
+	_, err = OpenEmailAuth(log, "bogus@beacon.example", "testtest")
 	if err != ErrUnknownCredentials {
 		t.Fatalf("got %v, expected ErrUnknownCredentials", err)
 	}
@@ -258,7 +258,7 @@ func TestMessageRuleset(t *testing.T) {
 	defer os.Remove(f.Name())
 	defer f.Close()
 
-	msgBuf := []byte(strings.ReplaceAll(`List-ID:  <test.mox.example>
+	msgBuf := []byte(strings.ReplaceAll(`List-ID:  <test.beacon.example>
 
 test
 `, "\n", "\r\n"))
@@ -267,7 +267,7 @@ test
 Rulesets:
 	-
 		HeadersRegexp:
-			list-id: <test\.mox\.example>
+			list-id: <test\.beacon\.example>
 		Mailbox: test
 `
 	var dest config.Destination
@@ -289,7 +289,7 @@ Rulesets:
 		t.Fatalf("expected ruleset match")
 	}
 
-	msg2Buf := []byte(strings.ReplaceAll(`From: <mjl@mox.example>
+	msg2Buf := []byte(strings.ReplaceAll(`From: <mjl@beacon.example>
 
 test
 `, "\n", "\r\n"))

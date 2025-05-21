@@ -757,7 +757,7 @@ const localStorageRemove = (k) => {
 	catch (err) {
 	}
 };
-const client = new api.Client().withOptions({ csrfHeader: 'x-mox-csrf', login: login }).withAuthToken(localStorageGet('webaccountcsrftoken') || '');
+const client = new api.Client().withOptions({ csrfHeader: 'x-beacon-csrf', login: login }).withAuthToken(localStorageGet('webaccountcsrftoken') || '');
 const link = (href, anchorOpt) => dom.a(attr.href(href), attr.rel('noopener noreferrer'), anchorOpt || href);
 const crumblink = (text, link) => dom.a(text, attr.href(link));
 const crumbs = (...l) => [
@@ -783,7 +783,7 @@ const crumbs = (...l) => [
 	dom.br()
 ];
 const errmsg = (err) => '' + (err.message || '(no error message)');
-const footer = dom.div(style({ marginTop: '6ex', opacity: 0.75 }), link('https://github.com/mjl-/mox', 'mox'), ' ', moxversion);
+const footer = dom.div(style({ marginTop: '6ex', opacity: 0.75 }), link('https://github.com/mjl-/beacon', 'beacon'), ' ', beaconversion);
 const domainName = (d) => {
 	return d.Unicode || d.ASCII;
 };
@@ -964,7 +964,7 @@ const index = async () => {
 				importProgress.style.display = '';
 				const xhr = new window.XMLHttpRequest();
 				xhr.open('POST', 'import', true);
-				xhr.setRequestHeader('x-mox-csrf', localStorageGet('webaccountcsrftoken') || '');
+				xhr.setRequestHeader('x-beacon-csrf', localStorageGet('webaccountcsrftoken') || '');
 				xhr.upload.addEventListener('progress', (e) => {
 					if (!e.lengthComputable) {
 						return;

@@ -28,17 +28,17 @@ import (
 
 	"github.com/mjl-/sconf"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
-//go:embed mox.service
-var moxService string
+//go:embed beacon.service
+var beaconService string
 
 func pwgen() string {
 	chars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*-_;:,<.>/"
@@ -60,43 +60,43 @@ func pwgen() string {
 
 func cmdQuickstart(c *cmd) {
 	c.params = "[-existing-webserver] [-hostname host] user@domain [user | uid]"
-	c.help = `Quickstart generates configuration files and prints instructions to quickly set up a mox instance.
+	c.help = `Quickstart generates configuration files and prints instructions to quickly set up a beacon instance.
 
 Quickstart writes configuration files, prints initial admin and account
 passwords, DNS records you should create. If you run it on Linux it writes a
-systemd service file and prints commands to enable and start mox as service.
+systemd service file and prints commands to enable and start beacon as service.
 
-The user or uid is optional, defaults to "mox", and is the user or uid/gid mox
+The user or uid is optional, defaults to "beacon", and is the user or uid/gid beacon
 will run as after initialization.
 
-Quickstart assumes mox will run on the machine you run quickstart on and uses
+Quickstart assumes beacon will run on the machine you run quickstart on and uses
 its host name and public IPs. On many systems the hostname is not a fully
 qualified domain name, but only the first dns "label", e.g. "mail" in case of
 "mail.example.org". If so, quickstart does a reverse DNS lookup to find the
 hostname, and as fallback uses the label plus the domain of the email address
-you specified. Use flag -hostname to explicitly specify the hostname mox will
+you specified. Use flag -hostname to explicitly specify the hostname beacon will
 run on.
 
 Mox is by far easiest to operate if you let it listen on port 443 (HTTPS) and
 80 (HTTP). TLS will be fully automatic with ACME with Let's Encrypt.
 
-You can run mox along with an existing webserver, but because of MTA-STS and
-autoconfig, you'll need to forward HTTPS traffic for two domains to mox. Run
-"mox quickstart -existing-webserver ..." to generate configuration files and
-instructions for configuring mox along with an existing webserver.
+You can run beacon along with an existing webserver, but because of MTA-STS and
+autoconfig, you'll need to forward HTTPS traffic for two domains to beacon. Run
+"beacon quickstart -existing-webserver ..." to generate configuration files and
+instructions for configuring beacon along with an existing webserver.
 
-But please first consider configuring mox on port 443. It can itself serve
+But please first consider configuring beacon on port 443. It can itself serve
 domains with HTTP/HTTPS, including with automatic TLS with ACME, is easily
 configured through both configuration files and admin web interface, and can act
 as a reverse proxy (and static file server for that matter), so you can forward
 traffic to your existing backend applications. Look for "WebHandlers:" in the
-output of "mox config describe-domains" and see the output of "mox example
+output of "beacon config describe-domains" and see the output of "beacon example
 webhandlers".
 `
 	var existingWebserver bool
 	var hostname string
-	c.flag.BoolVar(&existingWebserver, "existing-webserver", false, "use if a webserver is already running, so mox won't listen on port 80 and 443; you'll have to provide tls certificates/keys, and configure the existing webserver as reverse proxy, forwarding requests to mox.")
-	c.flag.StringVar(&hostname, "hostname", "", "hostname mox will run on, by default the hostname of the machine quickstart runs on; if specified, the IPs for the hostname are configured for the public listener")
+	c.flag.BoolVar(&existingWebserver, "existing-webserver", false, "use if a webserver is already running, so beacon won't listen on port 80 and 443; you'll have to provide tls certificates/keys, and configure the existing webserver as reverse proxy, forwarding requests to beacon.")
+	c.flag.StringVar(&hostname, "hostname", "", "hostname beacon will run on, by default the hostname of the machine quickstart runs on; if specified, the IPs for the hostname are configured for the public listener")
 	args := c.Parse()
 	if len(args) != 1 && len(args) != 2 {
 		c.Usage()
@@ -444,7 +444,7 @@ This likely means one of two things:
    before continuing.
 2. The hostname mentioned is not the correct host name of this machine. You will
    have to replace the hostname in the suggested DNS records and generated
-   config/mox.conf file. Make sure your hostname resolves to your public IPs, and
+   config/beacon.conf file. Make sure your hostname resolves to your public IPs, and
    your public IPs resolve back (reverse) to your hostname.
 
 
@@ -571,7 +571,7 @@ listed in more DNS block lists, visit:
 WARNING: Could not find your public IP address(es). The "public" listener is
 configured to listen on 0.0.0.0 (IPv4) and :: (IPv6). If you don't change these
 to your actual public IP addresses, you will likely get "address in use" errors
-when starting mox because the "internal" listener binds to a specific IP
+when starting beacon because the "internal" listener binds to a specific IP
 address on the same port(s). If you are behind a NAT, instead configure the
 actual public IPs in the listener's "NATIPs" option.
 
@@ -585,7 +585,7 @@ so the host IPs were configured in the NATIPs field of the public listeners. If
 you are behind a NAT that does not preserve the remote IPs of connections, you
 will likely experience problems accepting email due to IP-based policies. For
 example, SPF is a mechanism that checks if an IP address is allowed to send
-email for a domain, and mox uses IP-based (non)junk classification, and IP-based
+email for a domain, and beacon uses IP-based (non)junk classification, and IP-based
 rate-limiting both for accepting email and blocking bad actors (such as with too
 many authentication failures).
 
@@ -594,7 +594,7 @@ many authentication failures).
 
 	fmt.Printf("\n")
 
-	user := "mox"
+	user := "beacon"
 	if len(args) == 2 {
 		user = args[1]
 	}
@@ -648,7 +648,7 @@ many authentication failures).
 
 		fmt.Println(
 			`Placeholder paths to TLS certificates to be provided by the existing webserver
-have been placed in config/mox.conf and need to be edited.
+have been placed in config/beacon.conf and need to be edited.
 
 No private keys for the public listener have been generated for use with DANE.
 To configure DANE (which requires DNSSEC), set config field HostPrivateKeyFiles
@@ -743,14 +743,14 @@ and check the admin page for the needed DNS records.`)
 	sc.HostTLSRPT.Localpart = "tls-reports"
 	sc.HostTLSRPT.Mailbox = "TLSRPT"
 
-	mox.ConfigStaticPath = filepath.FromSlash("config/mox.conf")
-	mox.ConfigDynamicPath = filepath.FromSlash("config/domains.conf")
+	beacon.ConfigStaticPath = filepath.FromSlash("config/beacon.conf")
+	beacon.ConfigDynamicPath = filepath.FromSlash("config/domains.conf")
 
-	mox.Conf.DynamicLastCheck = time.Now() // Prevent error logging by Make calls below.
+	beacon.Conf.DynamicLastCheck = time.Now() // Prevent error logging by Make calls below.
 
-	accountConf := mox.MakeAccountConfig(addr)
+	accountConf := beacon.MakeAccountConfig(addr)
 	const withMTASTS = true
-	confDomain, keyPaths, err := mox.MakeDomainConfig(context.Background(), domain, dnshostname, accountName, withMTASTS)
+	confDomain, keyPaths, err := beacon.MakeDomainConfig(context.Background(), domain, dnshostname, accountName, withMTASTS)
 	if err != nil {
 		fatalf("making domain config: %s", err)
 	}
@@ -775,7 +775,7 @@ and check the admin page for the needed DNS records.`)
 	for _, bl := range public.SMTP.DNSBLs {
 		confstr = strings.ReplaceAll(confstr, "- "+bl+"\n", "#- "+bl+"\n")
 	}
-	xwritefile(filepath.FromSlash("config/mox.conf"), []byte(confstr), 0660)
+	xwritefile(filepath.FromSlash("config/beacon.conf"), []byte(confstr), 0660)
 
 	// Generate domains config, and add a commented out example for delivery to a mailing list.
 	var db bytes.Buffer
@@ -785,7 +785,7 @@ and check the admin page for the needed DNS records.`)
 
 	// This approach is a bit horrible, but it generates a convenient
 	// example that includes the comments. Though it is gone by the first
-	// write of the file by mox.
+	// write of the file by beacon.
 	odests := fmt.Sprintf("\t\tDestinations:\n\t\t\t%s: nil\n", addr.String())
 	var destsExample = struct {
 		Destinations map[string]config.Destination
@@ -818,7 +818,7 @@ and check the admin page for the needed DNS records.`)
 
 	// Verify config.
 	loadTLSKeyCerts := !existingWebserver
-	mc, errs := mox.ParseConfig(context.Background(), c.log, filepath.FromSlash("config/mox.conf"), true, loadTLSKeyCerts, false)
+	mc, errs := beacon.ParseConfig(context.Background(), c.log, filepath.FromSlash("config/beacon.conf"), true, loadTLSKeyCerts, false)
 	if len(errs) > 0 {
 		if len(errs) > 1 {
 			log.Printf("checking generated config, multiple errors:")
@@ -829,7 +829,7 @@ and check the admin page for the needed DNS records.`)
 		}
 		fatalf("checking generated config: %s", errs[0])
 	}
-	mox.SetConfig(mc)
+	beacon.SetConfig(mc)
 	// NOTE: Now that we've prepared the config, we can open the account
 	// and set a passsword, and the public key for the DKIM private keys
 	// are available for generating the DKIM DNS records below.
@@ -848,14 +848,14 @@ and check the admin page for the needed DNS records.`)
 	password := pwgen()
 
 	// Kludge to cause no logging to be printed about setting a new password.
-	loglevel := mox.Conf.Log[""]
-	mox.Conf.Log[""] = mlog.LevelWarn
-	mlog.SetConfig(mox.Conf.Log)
+	loglevel := beacon.Conf.Log[""]
+	beacon.Conf.Log[""] = mlog.LevelWarn
+	mlog.SetConfig(beacon.Conf.Log)
 	if err := acc.SetPassword(c.log, password); err != nil {
 		fatalf("setting password: %s", err)
 	}
-	mox.Conf.Log[""] = loglevel
-	mlog.SetConfig(mox.Conf.Log)
+	beacon.Conf.Log[""] = loglevel
+	mlog.SetConfig(beacon.Conf.Log)
 
 	if err := acc.Close(); err != nil {
 		fatalf("closing account: %s", err)
@@ -868,7 +868,7 @@ autoconfig/autodiscover does not work, use these settings:
 
 	if existingWebserver {
 		fmt.Printf(`
-Configuration files have been written to config/mox.conf and
+Configuration files have been written to config/beacon.conf and
 config/domains.conf.
 
 Create the DNS records below, by adding them to your zone file or through the
@@ -880,27 +880,27 @@ You must configure your existing webserver to forward requests for:
 	https://mta-sts.%s/
 	https://autoconfig.%s/
 
-To mox, at:
+To beacon, at:
 
 	http://127.0.0.1:81
 
 If it makes it easier to get a TLS certificate for %s, you can add a
 reverse proxy for that hostname too.
 
-You must edit mox.conf and configure the paths to the TLS certificates and keys.
-The paths are relative to config/ directory that holds mox.conf! To test if your
+You must edit beacon.conf and configure the paths to the TLS certificates and keys.
+The paths are relative to config/ directory that holds beacon.conf! To test if your
 config is valid, run:
 
-	./mox config test
+	./beacon config test
 
 The DNS records to add:
 `, domain.ASCII, domain.ASCII, dnshostname.ASCII)
 	} else {
 		fmt.Printf(`
-Configuration files have been written to config/mox.conf and
+Configuration files have been written to config/beacon.conf and
 config/domains.conf. You should review them. Then create the DNS records below,
 by adding them to your zone file or through the web interface of your DNS
-operator. You can also skip creating the DNS records and start mox immediately.
+operator. You can also skip creating the DNS records and start beacon immediately.
 The admin interface can show these same records, and has a page to check they
 have been configured correctly. The DNS records to add:
 `)
@@ -910,7 +910,7 @@ have been configured correctly. The DNS records to add:
 	// priming dns caches with negative/absent records, causing our "quick setup" to
 	// appear to fail or take longer than "quick".
 
-	records, err := mox.DomainRecords(confDomain, domain, domainDNSSECResult.Authentic, "letsencrypt.org", "")
+	records, err := beacon.DomainRecords(confDomain, domain, domainDNSSECResult.Authentic, "letsencrypt.org", "")
 	if err != nil {
 		fatalf("making required DNS records")
 	}
@@ -922,42 +922,42 @@ or if you are sending email for your domain from other machines/services, you
 should understand the consequences of the DNS records above before
 continuing!
 `)
-	if os.Getenv("MOX_DOCKER") == "" {
+	if os.Getenv("BEACON_DOCKER") == "" {
 		fmt.Printf(`
-You can now start mox with "./mox serve", as root.
+You can now start beacon with "./beacon serve", as root.
 `)
 	} else {
 		fmt.Printf(`
-You can now start the mox container.
+You can now start the beacon container.
 `)
 	}
 	fmt.Printf(`
-File ownership and permissions are automatically set correctly by mox when
-starting up. On linux, you may want to enable mox as a systemd service.
+File ownership and permissions are automatically set correctly by beacon when
+starting up. On linux, you may want to enable beacon as a systemd service.
 
 `)
 
 	// For now, we only give service config instructions for linux when not running in docker.
-	if runtime.GOOS == "linux" && os.Getenv("MOX_DOCKER") == "" {
+	if runtime.GOOS == "linux" && os.Getenv("BEACON_DOCKER") == "" {
 		pwd, err := os.Getwd()
 		if err != nil {
 			log.Printf("current working directory: %v", err)
-			pwd = "/home/mox"
+			pwd = "/home/beacon"
 		}
-		service := strings.ReplaceAll(moxService, "/home/mox", pwd)
-		xwritefile("mox.service", []byte(service), 0644)
-		cleanupPaths = append(cleanupPaths, "mox.service")
-		fmt.Printf(`See mox.service for a systemd service file. To enable and start:
+		service := strings.ReplaceAll(beaconService, "/home/beacon", pwd)
+		xwritefile("beacon.service", []byte(service), 0644)
+		cleanupPaths = append(cleanupPaths, "beacon.service")
+		fmt.Printf(`See beacon.service for a systemd service file. To enable and start:
 
-	sudo chmod 644 mox.service
-	sudo systemctl enable $PWD/mox.service
-	sudo systemctl start mox.service
-	sudo journalctl -f -u mox.service # See logs
+	sudo chmod 644 beacon.service
+	sudo systemctl enable $PWD/beacon.service
+	sudo systemctl start beacon.service
+	sudo journalctl -f -u beacon.service # See logs
 `)
 	}
 
 	fmt.Printf(`
-After starting mox, the web interfaces are served at:
+After starting beacon, the web interfaces are served at:
 
 http://localhost/         - account (email address as username)
 http://localhost/webmail/ - webmail (email address as username)
@@ -975,8 +975,8 @@ Enjoy!
 
 	if !existingWebserver {
 		fmt.Printf(`
-PS: If you want to run mox along side an existing webserver that uses port 443
-and 80, see "mox help quickstart" with the -existing-webserver option.
+PS: If you want to run beacon along side an existing webserver that uses port 443
+and 80, see "beacon help quickstart" with the -existing-webserver option.
 `)
 	}
 

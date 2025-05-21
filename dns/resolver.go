@@ -14,8 +14,8 @@ import (
 
 	"github.com/mjl-/adns"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/stub"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/stub"
 )
 
 // todo future: replace with a dnssec capable resolver

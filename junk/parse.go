@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/mjl-/mox/message"
+	"github.com/qompassai/beacon/message"
 )
 
 func (f *Filter) tokenizeMail(path string) (bool, map[string]struct{}, error) {

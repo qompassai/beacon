@@ -1427,7 +1427,7 @@ const localStorageRemove = (k) => {
 	catch (err) {
 	}
 };
-const client = new api.Client().withOptions({ csrfHeader: 'x-mox-csrf', login: login }).withAuthToken(localStorageGet('webadmincsrftoken') || '');
+const client = new api.Client().withOptions({ csrfHeader: 'x-beacon-csrf', login: login }).withAuthToken(localStorageGet('webadmincsrftoken') || '');
 const green = '#1dea20';
 const yellow = '#ffe400';
 const red = '#ff7443';
@@ -1456,7 +1456,7 @@ const crumbs = (...l) => [
 	dom.br()
 ];
 const errmsg = (err) => '' + (err.message || '(no error message)');
-const footer = dom.div(style({ marginTop: '6ex', opacity: 0.75 }), link('https://github.com/mjl-/mox', 'mox'), ' ', moxversion);
+const footer = dom.div(style({ marginTop: '6ex', opacity: 0.75 }), link('https://github.com/mjl-/beacon', 'beacon'), ' ', beaconversion);
 const age = (date, future, nowSecs) => {
 	if (!nowSecs) {
 		nowSecs = new Date().getTime() / 1000;
@@ -1590,7 +1590,7 @@ const index = async () => {
 	let domain;
 	let account;
 	let localpart;
-	dom._kids(page, crumbs('Mox Admin'), checkUpdatesEnabled ? [] : dom.p(box(yellow, 'Warning: Checking for updates has not been enabled in mox.conf (CheckUpdates: true).', dom.br(), 'Make sure you stay up to date through another mechanism!', dom.br(), 'You have a responsibility to keep the internet-connected software you run up to date and secure!', dom.br(), 'See ', link('https://updates.xmox.nl/changelog'))), dom.p(dom.a('Accounts', attr.href('#accounts')), dom.br(), dom.a('Queue', attr.href('#queue')), ' (' + queueSize + ')', dom.br()), dom.h2('Domains'), (domains || []).length === 0 ? box(red, 'No domains') :
+	dom._kids(page, crumbs('Mox Admin'), checkUpdatesEnabled ? [] : dom.p(box(yellow, 'Warning: Checking for updates has not been enabled in beacon.conf (CheckUpdates: true).', dom.br(), 'Make sure you stay up to date through another mechanism!', dom.br(), 'You have a responsibility to keep the internet-connected software you run up to date and secure!', dom.br(), 'See ', link('https://updates.xbeacon.nl/changelog'))), dom.p(dom.a('Accounts', attr.href('#accounts')), dom.br(), dom.a('Queue', attr.href('#queue')), ' (' + queueSize + ')', dom.br()), dom.h2('Domains'), (domains || []).length === 0 ? box(red, 'No domains') :
 		dom.ul((domains || []).map(d => dom.li(dom.a(attr.href('#domains/' + domainName(d)), domainString(d))))), dom.br(), dom.h2('Add domain'), dom.form(async function submit(e) {
 		e.preventDefault();
 		e.stopPropagation();
@@ -1622,7 +1622,7 @@ const loglevels = async () => {
 	let fieldset;
 	let pkg;
 	let level;
-	dom._kids(page, crumbs(crumblink('Mox Admin', '#'), 'Log levels'), dom.p('Note: changing a log level here only changes it for the current process. When mox restarts, it sets the log levels from the configuration file. Change mox.conf to keep the changes.'), dom.table(dom.thead(dom.tr(dom.th('Package', attr.title('Log levels can be configured per package. E.g. smtpserver, imapserver, dkim, dmarc, tlsrpt, etc.')), dom.th('Level', attr.title('If you set the log level to "trace", imap and smtp protocol transcripts will be logged. Sensitive authentication is replaced with "***" unless the level is >= "traceauth". Data is masked with "..." unless the level is "tracedata".')), dom.th('Action'))), dom.tbody(Object.entries(loglevels).map(t => {
+	dom._kids(page, crumbs(crumblink('Mox Admin', '#'), 'Log levels'), dom.p('Note: changing a log level here only changes it for the current process. When beacon restarts, it sets the log levels from the configuration file. Change beacon.conf to keep the changes.'), dom.table(dom.thead(dom.tr(dom.th('Package', attr.title('Log levels can be configured per package. E.g. smtpserver, imapserver, dkim, dmarc, tlsrpt, etc.')), dom.th('Level', attr.title('If you set the log level to "trace", imap and smtp protocol transcripts will be logged. Sensitive authentication is replaced with "***" unless the level is >= "traceauth". Data is masked with "..." unless the level is "tracedata".')), dom.th('Action'))), dom.tbody(Object.entries(loglevels).map(t => {
 		let lvl;
 		return dom.tr(dom.td(t[0] || '(default)'), dom.td(lvl = dom.select(levels.map(l => dom.option(l, t[1] === l ? attr.selected('') : [])))), dom.td(dom.clickbutton('Save', attr.title('Set new log level for package.'), async function click(e) {
 			e.preventDefault();
@@ -1674,7 +1674,7 @@ const loglevels = async () => {
 		}
 		form.reset();
 		window.location.reload(); // todo: reload just the current loglevels
-	}, fieldset = dom.fieldset(dom.label(style({ display: 'inline-block' }), 'Package', dom.br(), pkg = dom.input(attr.required(''))), ' ', dom.label(style({ display: 'inline-block' }), 'Level', dom.br(), level = dom.select(attr.required(''), levels.map(l => dom.option(l, l === 'debug' ? attr.selected('') : [])))), ' ', dom.submitbutton('Add')), dom.br(), dom.p('Suggestions for packages: autotls dkim dmarc dmarcdb dns dnsbl dsn http imapserver iprev junk message metrics mox moxio mtasts mtastsdb publicsuffix queue sendmail serve smtpserver spf store subjectpass tlsrpt tlsrptdb updates')));
+	}, fieldset = dom.fieldset(dom.label(style({ display: 'inline-block' }), 'Package', dom.br(), pkg = dom.input(attr.required(''))), ' ', dom.label(style({ display: 'inline-block' }), 'Level', dom.br(), level = dom.select(attr.required(''), levels.map(l => dom.option(l, l === 'debug' ? attr.selected('') : [])))), ' ', dom.submitbutton('Add')), dom.br(), dom.p('Suggestions for packages: autotls dkim dmarc dmarcdb dns dnsbl dsn http imapserver iprev junk message metrics beacon beaconio mtasts mtastsdb publicsuffix queue sendmail serve smtpserver spf store subjectpass tlsrpt tlsrptdb updates')));
 };
 const box = (color, ...l) => [
 	dom.div(style({
@@ -2781,7 +2781,7 @@ const webserver = async () => {
 					ResponseHeaders: responseHeaders.get(),
 				};
 			};
-			const root = dom.table(dom.tr(dom.td('Type'), dom.td('StripPrefix', attr.title('Path to strip from the request URL before evaluating to a local path. If the requested URL path does not start with this prefix and ContinueNotFound it is considered non-matching and next WebHandlers are tried. If ContinueNotFound is not set, a file not found (404) is returned in that case.')), dom.td('Root', attr.title('Directory to serve files from for this handler. Keep in mind that relative paths are relative to the working directory of mox.')), dom.td('ListFiles', attr.title('If set, and a directory is requested, and no index.html is present that can be served, a file listing is returned. Results in 403 if ListFiles is not set. If a directory is requested and the URL does not end with a slash, the response is a redirect to the path with trailing slash.')), dom.td('ContinueNotFound', attr.title("If a requested URL does not exist, don't return a file not found (404) response, but consider this handler non-matching and continue attempts to serve with later WebHandlers, which may be a reverse proxy generating dynamic content, possibly even writing a static file for a next request to serve statically. If ContinueNotFound is set, HTTP requests other than GET and HEAD do not match. This mechanism can be used to implement the equivalent of 'try_files' in other webservers.")), dom.td(dom.span('Response headers', attr.title('Headers to add to the response. Useful for cache-control, content-type, etc. By default, Content-Type headers are automatically added for recognized file types, unless added explicitly through this setting. For directory listings, a content-type header is skipped.')), ' ', responseHeaders.add)), dom.tr(dom.td(dom.select(attr.required(''), dom.option('Static', attr.selected('')), dom.option('Redirect'), dom.option('Forward'), function change(e) {
+			const root = dom.table(dom.tr(dom.td('Type'), dom.td('StripPrefix', attr.title('Path to strip from the request URL before evaluating to a local path. If the requested URL path does not start with this prefix and ContinueNotFound it is considered non-matching and next WebHandlers are tried. If ContinueNotFound is not set, a file not found (404) is returned in that case.')), dom.td('Root', attr.title('Directory to serve files from for this handler. Keep in mind that relative paths are relative to the working directory of beacon.')), dom.td('ListFiles', attr.title('If set, and a directory is requested, and no index.html is present that can be served, a file listing is returned. Results in 403 if ListFiles is not set. If a directory is requested and the URL does not end with a slash, the response is a redirect to the path with trailing slash.')), dom.td('ContinueNotFound', attr.title("If a requested URL does not exist, don't return a file not found (404) response, but consider this handler non-matching and continue attempts to serve with later WebHandlers, which may be a reverse proxy generating dynamic content, possibly even writing a static file for a next request to serve statically. If ContinueNotFound is set, HTTP requests other than GET and HEAD do not match. This mechanism can be used to implement the equivalent of 'try_files' in other webservers.")), dom.td(dom.span('Response headers', attr.title('Headers to add to the response. Useful for cache-control, content-type, etc. By default, Content-Type headers are automatically added for recognized file types, unless added explicitly through this setting. For directory listings, a content-type header is skipped.')), ' ', responseHeaders.add)), dom.tr(dom.td(dom.select(attr.required(''), dom.option('Static', attr.selected('')), dom.option('Redirect'), dom.option('Forward'), function change(e) {
 				makeType(e.target.value);
 			})), dom.td(stripPrefix = dom.input(attr.value(ws.StripPrefix || ''))), dom.td(rootPath = dom.input(attr.required(''), attr.placeholder('web/...'), attr.value(ws.Root || ''))), dom.td(listFiles = dom.input(attr.type('checkbox'), ws.ListFiles ? attr.checked('') : [])), dom.td(continueNotFound = dom.input(attr.type('checkbox'), ws.ContinueNotFound ? attr.checked('') : [])), dom.td(responseHeaders)));
 			view = { root: root, get: get };

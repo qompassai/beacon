@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
 )
 
 func TestDialHost(t *testing.T) {

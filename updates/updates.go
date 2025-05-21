@@ -23,10 +23,10 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/stub"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/stub"
 )
 
 var (
@@ -156,7 +156,7 @@ func FetchChangelog(ctx context.Context, elog *slog.Logger, baseURL string, base
 		return nil, fmt.Errorf("%w: http status: %s", ErrChangelogFetch, resp.Status)
 	}
 	var cl Changelog
-	if err := json.NewDecoder(&moxio.LimitReader{R: resp.Body, Limit: 1024 * 1024}).Decode(&cl); err != nil {
+	if err := json.NewDecoder(&beaconio.LimitReader{R: resp.Body, Limit: 1024 * 1024}).Decode(&cl); err != nil {
 		return nil, fmt.Errorf("%w: parsing changelog: %s", ErrChangelogFetch, err)
 	}
 	for _, c := range cl.Changes {

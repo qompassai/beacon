@@ -22,8 +22,8 @@ import (
 
 	"github.com/mjl-/adns"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
 )
 
 func TestLookup(t *testing.T) {
@@ -166,7 +166,7 @@ func fakeCert(t *testing.T, expired bool) tls.Certificate {
 
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1), // Required field...
-		DNSNames:     []string{"mta-sts.mox.example"},
+		DNSNames:     []string{"mta-sts.beacon.example"},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     notAfter,
 	}
@@ -198,7 +198,7 @@ func TestFetch(t *testing.T) {
 
 	resolver := dns.MockResolver{
 		TXT: map[string][]string{
-			"_mta-sts.mox.example.":   {"v=STSv1; id=1"},
+			"_mta-sts.beacon.example.":   {"v=STSv1; id=1"},
 			"_mta-sts.other.example.": {"v=STSv1; id=1"},
 		},
 	}
@@ -261,15 +261,15 @@ func TestFetch(t *testing.T) {
 		}
 	}
 
-	test(certok, "mox.example", 200, "bogus", nil, ErrPolicySyntax)
+	test(certok, "beacon.example", 200, "bogus", nil, ErrPolicySyntax)
 	test(certok, "other.example", 200, "bogus", nil, ErrPolicyFetch)
-	test(certbad, "mox.example", 200, "bogus", nil, ErrPolicyFetch)
-	test(certok, "mox.example", 404, "bogus", nil, ErrNoPolicy)
+	test(certbad, "beacon.example", 200, "bogus", nil, ErrPolicyFetch)
+	test(certok, "beacon.example", 404, "bogus", nil, ErrNoPolicy)
 	test(certok, "doesnotexist.example", 200, "bogus", nil, ErrNoPolicy)
-	test(certok, "mox.example", 301, "bogus", nil, ErrPolicyFetch)
-	test(certok, "mox.example", 500, "bogus", nil, ErrPolicyFetch)
+	test(certok, "beacon.example", 301, "bogus", nil, ErrPolicyFetch)
+	test(certok, "beacon.example", 500, "bogus", nil, ErrPolicyFetch)
 	large := make([]byte, 64*1024+2)
-	test(certok, "mox.example", 200, string(large), nil, ErrPolicySyntax)
+	test(certok, "beacon.example", 200, string(large), nil, ErrPolicySyntax)
 	validPolicy := "version:STSv1\nmode:none\nmax_age:1"
-	test(certok, "mox.example", 200, validPolicy, &Policy{Version: "STSv1", Mode: "none", MaxAgeSeconds: 1}, nil)
+	test(certok, "beacon.example", 200, validPolicy, &Policy{Version: "STSv1", Mode: "none", MaxAgeSeconds: 1}, nil)
 }

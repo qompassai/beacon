@@ -1,4 +1,4 @@
-// Package webadmin is a web app for the mox administrator for viewing and changing
+// Package webadmin is a web app for the beacon administrator for viewing and changing
 // the configuration, like creating/removing accounts, viewing DMARC and TLS
 // reports, check DNS records for a domain, change the webserver configuration,
 // etc.
@@ -43,27 +43,27 @@ import (
 	"github.com/mjl-/sherpadoc"
 	"github.com/mjl-/sherpaprom"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	mox "github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/spf"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	beacon "github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/spf"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
+	"github.com/qompassai/beacon/webauth"
 )
 
 var pkglog = mlog.New("webadmin", nil)
@@ -77,7 +77,7 @@ var adminHTML []byte
 //go:embed admin.js
 var adminJS []byte
 
-var webadminFile = &mox.WebappFile{
+var webadminFile = &beacon.WebappFile{
 	HTML:     adminHTML,
 	JS:       adminJS,
 	HTMLPath: filepath.FromSlash("webadmin/admin.html"),
@@ -97,11 +97,11 @@ func mustParseAPI(api string, buf []byte) (doc sherpadoc.Section) {
 var sherpaHandlerOpts *sherpa.HandlerOpts
 
 func makeSherpaHandler(cookiePath string, isForwarded bool) (http.Handler, error) {
-	return sherpa.NewHandler("/api/", moxvar.Version, Admin{cookiePath, isForwarded}, &adminDoc, sherpaHandlerOpts)
+	return sherpa.NewHandler("/api/", beaconvar.Version, Admin{cookiePath, isForwarded}, &adminDoc, sherpaHandlerOpts)
 }
 
 func init() {
-	collector, err := sherpaprom.NewCollector("moxadmin", nil)
+	collector, err := sherpaprom.NewCollector("beaconadmin", nil)
 	if err != nil {
 		pkglog.Fatalx("creating sherpa prometheus collector", err)
 	}
@@ -146,7 +146,7 @@ type requestInfo struct {
 }
 
 func handle(apiHandler http.Handler, isForwarded bool, w http.ResponseWriter, r *http.Request) {
-	ctx := context.WithValue(r.Context(), mlog.CidKey, mox.Cid())
+	ctx := context.WithValue(r.Context(), mlog.CidKey, beacon.Cid())
 	log := pkglog.WithContext(ctx).With(slog.String("adminauth", ""))
 
 	// HTML/JS can be retrieved without authentication.
@@ -363,7 +363,7 @@ type AutodiscoverCheckResult struct {
 }
 
 // CheckResult is the analysis of a domain, its actual configuration (DNS, TLS,
-// connectivity) and the mox configuration. It includes configuration instructions
+// connectivity) and the beacon configuration. It includes configuration instructions
 // (e.g. DNS records), and warnings and errors encountered.
 type CheckResult struct {
 	Domain       string
@@ -396,14 +396,14 @@ func logPanic(ctx context.Context) {
 
 // return IPs we may be listening on.
 func xlistenIPs(ctx context.Context, receiveOnly bool) []net.IP {
-	ips, err := mox.IPs(ctx, receiveOnly)
+	ips, err := beacon.IPs(ctx, receiveOnly)
 	xcheckf(ctx, err, "listing ips")
 	return ips
 }
 
 // return IPs from which we may be sending.
 func xsendingIPs(ctx context.Context) []net.IP {
-	ips, err := mox.IPs(ctx, false)
+	ips, err := beacon.IPs(ctx, false)
 	xcheckf(ctx, err, "listing ips")
 	return ips
 }
@@ -437,7 +437,7 @@ func checkDomain(ctx context.Context, resolver dns.Resolver, dialer *net.Dialer,
 	domain, err := dns.ParseDomain(domainName)
 	xcheckuserf(ctx, err, "parsing domain")
 
-	domConf, ok := mox.Conf.Domain(domain)
+	domConf, ok := beacon.Conf.Domain(domain)
 	if !ok {
 		panic(&sherpa.Error{Code: "user:notFound", Message: "domain not found"})
 	}
@@ -485,7 +485,7 @@ func checkDomain(ctx context.Context, resolver dns.Resolver, dialer *net.Dialer,
 			Config: &tls.Config{
 				ServerName: host,
 				MinVersion: tls.VersionTLS12, // ../rfc/8996:31 ../rfc/8997:66
-				RootCAs:    mox.Conf.Static.TLS.CertPool,
+				RootCAs:    beacon.Conf.Static.TLS.CertPool,
 			},
 		}
 		for _, ip := range ips {
@@ -501,7 +501,7 @@ func checkDomain(ctx context.Context, resolver dns.Resolver, dialer *net.Dialer,
 	// If at least one listener with SMTP enabled has unspecified NATed IPs, we'll skip
 	// some checks related to these IPs.
 	var isNAT, isUnspecifiedNAT bool
-	for _, l := range mox.Conf.Static.Listeners {
+	for _, l := range beacon.Conf.Static.Listeners {
 		if !l.SMTP.Enabled {
 			continue
 		}
@@ -552,10 +552,10 @@ EOF
 		defer logPanic(ctx)
 		defer wg.Done()
 
-		// For each mox.Conf.SpecifiedSMTPListenIPs and all NATIPs, and each IP for
-		// mox.Conf.HostnameDomain, check if they resolve back to the host name.
+		// For each beacon.Conf.SpecifiedSMTPListenIPs and all NATIPs, and each IP for
+		// beacon.Conf.HostnameDomain, check if they resolve back to the host name.
 		hostIPs := map[dns.Domain][]net.IP{}
-		ips, _, err := resolver.LookupIP(ctx, "ip", mox.Conf.Static.HostnameDomain.ASCII+".")
+		ips, _, err := resolver.LookupIP(ctx, "ip", beacon.Conf.Static.HostnameDomain.ASCII+".")
 		if err != nil {
 			addf(&r.IPRev.Errors, "Looking up IPs for hostname: %s", err)
 		}
@@ -572,9 +572,9 @@ EOF
 			}
 		}
 		if !isNAT {
-			gatherMoreIPs(mox.Conf.Static.SpecifiedSMTPListenIPs)
+			gatherMoreIPs(beacon.Conf.Static.SpecifiedSMTPListenIPs)
 		}
-		for _, l := range mox.Conf.Static.Listeners {
+		for _, l := range beacon.Conf.Static.Listeners {
 			if !l.SMTP.Enabled {
 				continue
 			}
@@ -584,7 +584,7 @@ EOF
 			}
 			gatherMoreIPs(natips)
 		}
-		hostIPs[mox.Conf.Static.HostnameDomain] = ips
+		hostIPs[beacon.Conf.Static.HostnameDomain] = ips
 
 		iplist := func(ips []net.IP) string {
 			var ipstrs []string
@@ -594,13 +594,13 @@ EOF
 			return strings.Join(ipstrs, ", ")
 		}
 
-		r.IPRev.Hostname = mox.Conf.Static.HostnameDomain
+		r.IPRev.Hostname = beacon.Conf.Static.HostnameDomain
 		r.IPRev.Instructions = []string{
-			fmt.Sprintf("Ensure IPs %s have reverse address %s.", iplist(ips), mox.Conf.Static.HostnameDomain.ASCII),
+			fmt.Sprintf("Ensure IPs %s have reverse address %s.", iplist(ips), beacon.Conf.Static.HostnameDomain.ASCII),
 		}
 
 		// If we have a socks transport, also check its host and IP.
-		for tname, t := range mox.Conf.Static.Transports {
+		for tname, t := range beacon.Conf.Static.Transports {
 			if t.Socks != nil {
 				hostIPs[t.Socks.Hostname] = append(hostIPs[t.Socks.Hostname], t.Socks.IPs...)
 				instr := fmt.Sprintf("For SOCKS transport %s, ensure IPs %s have reverse address %s.", tname, iplist(t.Socks.IPs), t.Socks.Hostname)
@@ -662,7 +662,7 @@ EOF
 		// have warned about this, but could have been missed/ignored.
 		for _, ip := range ips {
 			if ip.IsLoopback() {
-				addf(&r.IPRev.Errors, "Hostname %s resolves to loopback IP %s, this will likely prevent email delivery to local accounts from working. The loopback IP was probably configured in /etc/hosts at system installation time. Replace the loopback IP with your actual external IPs in /etc/hosts.", mox.Conf.Static.HostnameDomain, ip.String())
+				addf(&r.IPRev.Errors, "Hostname %s resolves to loopback IP %s, this will likely prevent email delivery to local accounts from working. The loopback IP was probably configured in /etc/hosts at system installation time. Replace the loopback IP with your actual external IPs in /etc/hosts.", beacon.Conf.Static.HostnameDomain, ip.String())
 			}
 		}
 	}()
@@ -702,7 +702,7 @@ EOF
 
 		}
 		r.MX.Instructions = []string{
-			fmt.Sprintf("Ensure a DNS MX record like the following exists:\n\n\t%s MX 10 %s\n\nWithout the trailing dot, the name would be interpreted as relative to the domain.", domain.ASCII+".", mox.Conf.Static.HostnameDomain.ASCII+"."),
+			fmt.Sprintf("Ensure a DNS MX record like the following exists:\n\n\t%s MX 10 %s\n\nWithout the trailing dot, the name would be interpreted as relative to the domain.", domain.ASCII+".", beacon.Conf.Static.HostnameDomain.ASCII+"."),
 		}
 	}()
 
@@ -738,7 +738,7 @@ EOF
 			if err != nil {
 				return fmt.Errorf("reading SMTP banner from remote: %s", err)
 			}
-			if _, err := fmt.Fprintf(conn, "EHLO moxtest\r\n"); err != nil {
+			if _, err := fmt.Fprintf(conn, "EHLO beacontest\r\n"); err != nil {
 				return fmt.Errorf("writing SMTP EHLO to remote: %s", err)
 			}
 			for {
@@ -766,7 +766,7 @@ EOF
 			}
 			config := &tls.Config{
 				ServerName: host,
-				RootCAs:    mox.Conf.Static.TLS.CertPool,
+				RootCAs:    beacon.Conf.Static.TLS.CertPool,
 			}
 			tlsconn := tls.Client(conn, config)
 			if err := tlsconn.HandshakeContext(cctx); err != nil {
@@ -841,13 +841,13 @@ EOF
 		}
 
 		expectedDANERecords := func(host string) map[string]struct{} {
-			for _, l := range mox.Conf.Static.Listeners {
+			for _, l := range beacon.Conf.Static.Listeners {
 				if l.HostnameDomain.ASCII == host {
 					return daneRecords(l)
 				}
 			}
-			public := mox.Conf.Static.Listeners["public"]
-			if mox.Conf.Static.HostnameDomain.ASCII == host && public.HostnameDomain.ASCII == "" {
+			public := beacon.Conf.Static.Listeners["public"]
+			if beacon.Conf.Static.HostnameDomain.ASCII == host && public.HostnameDomain.ASCII == "" {
 				return daneRecords(public)
 			}
 			return nil
@@ -898,10 +898,10 @@ EOF
 			}
 		}
 
-		public := mox.Conf.Static.Listeners["public"]
+		public := beacon.Conf.Static.Listeners["public"]
 		pubDom := public.HostnameDomain
 		if pubDom.ASCII == "" {
-			pubDom = mox.Conf.Static.HostnameDomain
+			pubDom = beacon.Conf.Static.HostnameDomain
 		}
 		records := maps.Keys(daneRecords(public))
 		sort.Strings(records)
@@ -963,7 +963,7 @@ EOF
 				}
 			}
 
-			for _, l := range mox.Conf.Static.Listeners {
+			for _, l := range beacon.Conf.Static.Listeners {
 				if !l.SMTP.Enabled || l.IPsNATed {
 					continue
 				}
@@ -976,7 +976,7 @@ EOF
 					checkSPFIP(ip)
 				}
 			}
-			for _, t := range mox.Conf.Static.Transports {
+			for _, t := range beacon.Conf.Static.Transports {
 				if t.Socks != nil {
 					for _, ip := range t.Socks.IPs {
 						checkSPFIP(ip)
@@ -992,16 +992,16 @@ EOF
 		var dspfr spf.Record
 		r.SPF.DomainTXT, r.SPF.DomainRecord, dspfr = verifySPF("domain", domain)
 		// todo: possibly check all hosts for MX records? assuming they are also sending mail servers.
-		r.SPF.HostTXT, r.SPF.HostRecord, _ = verifySPF("host", mox.Conf.Static.HostnameDomain)
+		r.SPF.HostTXT, r.SPF.HostRecord, _ = verifySPF("host", beacon.Conf.Static.HostnameDomain)
 
 		dtxt, err := dspfr.Record()
 		if err != nil {
 			addf(&r.SPF.Errors, "Making SPF record for instructions: %s", err)
 		}
-		domainspf := fmt.Sprintf("%s TXT %s", domain.ASCII+".", mox.TXTStrings(dtxt))
+		domainspf := fmt.Sprintf("%s TXT %s", domain.ASCII+".", beacon.TXTStrings(dtxt))
 
 		// Check SPF record for sending host. ../rfc/7208:2263 ../rfc/7208:2287
-		hostspf := fmt.Sprintf(`%s TXT "v=spf1 a -all"`, mox.Conf.Static.HostnameDomain.ASCII+".")
+		hostspf := fmt.Sprintf(`%s TXT "v=spf1 a -all"`, beacon.Conf.Static.HostnameDomain.ASCII+".")
 
 		addf(&r.SPF.Instructions, "Ensure DNS TXT records like the following exists:\n\n\t%s\n\t%s\n\nIf you have an existing mail setup, with other hosts also sending mail for you domain, you should add those IPs as well. You could replace \"-all\" with \"~all\" to treat mail sent from unlisted IPs as \"softfail\", or with \"?all\" for \"neutral\".", domainspf, hostspf)
 	}()
@@ -1080,7 +1080,7 @@ EOF
 				addf(&r.DKIM.Errors, "Making DKIM record for instructions: %s", err)
 				continue
 			}
-			instr += fmt.Sprintf("\n\t%s._domainkey TXT %s\n", sel, mox.TXTStrings(txt))
+			instr += fmt.Sprintf("\n\t%s._domainkey TXT %s\n", sel, beacon.TXTStrings(txt))
 		}
 		if instr != "" {
 			instr = "Ensure the following DNS record(s) exists, so mail servers receiving emails from this domain can verify the signatures in the mail headers:\n" + instr
@@ -1160,7 +1160,7 @@ EOF
 		} else {
 			addf(&r.DMARC.Instructions, `Configure a DMARC destination in domain in config file.`)
 		}
-		instr := fmt.Sprintf("Ensure a DNS TXT record like the following exists:\n\n\t_dmarc TXT %s\n\nYou can start with testing mode by replacing p=reject with p=none. You can also request for the policy to be applied to a percentage of emails instead of all, by adding pct=X, with X between 0 and 100. Keep in mind that receiving mail servers will apply some anti-spam assessment regardless of the policy and whether it is applied to the message. The ruf= part requests daily aggregate reports to be sent to the specified address, which is automatically configured and reports automatically analyzed.", mox.TXTStrings(dmarcr.String()))
+		instr := fmt.Sprintf("Ensure a DNS TXT record like the following exists:\n\n\t_dmarc TXT %s\n\nYou can start with testing mode by replacing p=reject with p=none. You can also request for the policy to be applied to a percentage of emails instead of all, by adding pct=X, with X between 0 and 100. Keep in mind that receiving mail servers will apply some anti-spam assessment regardless of the policy and whether it is applied to the message. The ruf= part requests daily aggregate reports to be sent to the specified address, which is automatically configured and reports automatically analyzed.", beacon.TXTStrings(dmarcr.String()))
 		addf(&r.DMARC.Instructions, instr)
 		if extInstr != "" {
 			addf(&r.DMARC.Instructions, extInstr)
@@ -1199,7 +1199,7 @@ EOF
 Ensure a DNS TXT record like the following exists:
 
 	_smtp._tls TXT %s
-`, mox.TXTStrings(tlsrptr.String()))
+`, beacon.TXTStrings(tlsrptr.String()))
 
 			if err == nil {
 				found := false
@@ -1218,7 +1218,7 @@ Ensure a DNS TXT record like the following exists:
 			}
 
 		} else if isHost {
-			addf(&result.Errors, `Configure a host TLSRPT localpart in static mox.conf config file.`)
+			addf(&result.Errors, `Configure a host TLSRPT localpart in static beacon.conf config file.`)
 		} else {
 			addf(&result.Errors, `Configure a domain TLSRPT destination in domains.conf config file.`)
 		}
@@ -1228,10 +1228,10 @@ Ensure a DNS TXT record like the following exists:
 	// Host TLSRPT
 	wg.Add(1)
 	var hostTLSRPTAddr smtp.Address
-	if mox.Conf.Static.HostTLSRPT.Localpart != "" {
-		hostTLSRPTAddr = smtp.NewAddress(mox.Conf.Static.HostTLSRPT.ParsedLocalpart, mox.Conf.Static.HostnameDomain)
+	if beacon.Conf.Static.HostTLSRPT.Localpart != "" {
+		hostTLSRPTAddr = smtp.NewAddress(beacon.Conf.Static.HostTLSRPT.ParsedLocalpart, beacon.Conf.Static.HostnameDomain)
 	}
-	go checkTLSRPT(&r.HostTLSRPT, mox.Conf.Static.HostnameDomain, hostTLSRPTAddr, true)
+	go checkTLSRPT(&r.HostTLSRPT, beacon.Conf.Static.HostnameDomain, hostTLSRPTAddr, true)
 
 	// Domain TLSRPT
 	wg.Add(1)
@@ -1267,7 +1267,7 @@ Ensure a DNS TXT record like the following exists:
 		r.MTASTS.PolicyText = text
 		r.MTASTS.Policy = policy
 		if policy != nil && policy.Mode != mtasts.ModeNone {
-			if !policy.Matches(mox.Conf.Static.HostnameDomain) {
+			if !policy.Matches(beacon.Conf.Static.HostnameDomain) {
 				addf(&r.MTASTS.Warnings, "Configured hostname is missing from policy MX list.")
 			}
 			if policy.MaxAgeSeconds <= 24*3600 {
@@ -1306,7 +1306,7 @@ After enabling MTA-STS for this domain, remote SMTP servers may still deliver in
 
 You can opt-in to MTA-STS by creating a DNS record, _mta-sts.<domain>, and serving a policy at https://mta-sts.<domain>/.well-known/mta-sts.txt. Mox will serve the policy, you must create the DNS records.
 
-You can start with a policy in "testing" mode. Remote SMTP servers will apply the MTA-STS policy, but not abort delivery in case of failure. Instead, you will receive a report if you have TLSRPT configured. By starting in testing mode for a representative period, verifying all mail can be deliverd, you can safely switch to "enforce" mode. While in enforce mode, plaintext deliveries to mox are refused.
+You can start with a policy in "testing" mode. Remote SMTP servers will apply the MTA-STS policy, but not abort delivery in case of failure. Instead, you will receive a report if you have TLSRPT configured. By starting in testing mode for a representative period, verifying all mail can be deliverd, you can safely switch to "enforce" mode. While in enforce mode, plaintext deliveries to beacon are refused.
 
 The _mta-sts DNS TXT record has an "id" field. The id serves as a version of the policy. A policy specifies the mode: none, testing, enforce. For "none", no TLS is required. A policy has a "max age", indicating how long the policy can be cached. Allowing the policy to be cached for a long time provides stronger counter measures to active attackers, but reduces configuration change agility. After enabling "enforce" mode, remote SMTP servers may and will cache your policy for as long as "max age" was configured. Keep this in mind when enabling/disabling MTA-STS. To disable MTA-STS after having it enabled, publish a new record with mode "none" until all past policy expiration times have passed.
 
@@ -1316,14 +1316,14 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 
 		addf(&r.MTASTS.Instructions, `Enable a policy through the configuration file. For new deployments, it is best to start with mode "testing" while enabling TLSRPT. Start with a short "max_age", so updates to your policy are picked up quickly. When confidence in the deployment is high enough, switch to "enforce" mode and a longer "max age". A max age in the order of weeks is recommended. If you foresee a change to your setup in the future, requiring different policies or MX records, you may want to dial back the "max age" ahead of time, similar to how you would handle TTL's in DNS record updates.`)
 
-		host := fmt.Sprintf("Ensure DNS CNAME/A/AAAA records exist that resolve mta-sts.%s to this mail server. For example:\n\n\t%s CNAME %s\n\n", domain.ASCII, "mta-sts."+domain.ASCII+".", mox.Conf.Static.HostnameDomain.ASCII+".")
+		host := fmt.Sprintf("Ensure DNS CNAME/A/AAAA records exist that resolve mta-sts.%s to this mail server. For example:\n\n\t%s CNAME %s\n\n", domain.ASCII, "mta-sts."+domain.ASCII+".", beacon.Conf.Static.HostnameDomain.ASCII+".")
 		addf(&r.MTASTS.Instructions, host)
 
 		mtastsr := mtasts.Record{
 			Version: "STSv1",
 			ID:      time.Now().Format("20060102T150405"),
 		}
-		dns := fmt.Sprintf("Ensure a DNS TXT record like the following exists:\n\n\t_mta-sts TXT %s\n\nConfigure the ID in the configuration file, it must be of the form [a-zA-Z0-9]{1,31}. It represents the version of the policy. For each policy change, you must change the ID to a new unique value. You could use a timestamp like 20220621T123000. When this field exists, an SMTP server will fetch a policy at https://mta-sts.%s/.well-known/mta-sts.txt. This policy is served by mox.", mox.TXTStrings(mtastsr.String()), domain.Name())
+		dns := fmt.Sprintf("Ensure a DNS TXT record like the following exists:\n\n\t_mta-sts TXT %s\n\nConfigure the ID in the configuration file, it must be of the form [a-zA-Z0-9]{1,31}. It represents the version of the policy. For each policy change, you must change the ID to a new unique value. You could use a timestamp like 20220621T123000. When this field exists, an SMTP server will fetch a policy at https://mta-sts.%s/.well-known/mta-sts.txt. This policy is served by beacon.", beacon.TXTStrings(mtastsr.String()), domain.Name())
 		addf(&r.MTASTS.Instructions, dns)
 	}()
 
@@ -1344,7 +1344,7 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 		// We'll assume if any submissions is configured, it is public. Same for imap. And
 		// if not, that there is a plain option.
 		var submissions, imaps bool
-		for _, l := range mox.Conf.Static.Listeners {
+		for _, l := range beacon.Conf.Static.Listeners {
 			if l.TLS != nil && l.Submissions.Enabled {
 				submissions = true
 			}
@@ -1354,7 +1354,7 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 		}
 		srvhost := func(ok bool) string {
 			if ok {
-				return mox.Conf.Static.HostnameDomain.ASCII + "."
+				return beacon.Conf.Static.HostnameDomain.ASCII + "."
 			}
 			return "."
 		}
@@ -1400,7 +1400,7 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 		defer wg.Done()
 
 		if domConf.ClientSettingsDomain != "" {
-			addf(&r.Autoconf.Instructions, "Ensure a DNS CNAME record like the following exists:\n\n\t%s CNAME %s\n\nNote: the trailing dot is relevant, it makes the host name absolute instead of relative to the domain name.", domConf.ClientSettingsDNSDomain.ASCII+".", mox.Conf.Static.HostnameDomain.ASCII+".")
+			addf(&r.Autoconf.Instructions, "Ensure a DNS CNAME record like the following exists:\n\n\t%s CNAME %s\n\nNote: the trailing dot is relevant, it makes the host name absolute instead of relative to the domain name.", domConf.ClientSettingsDNSDomain.ASCII+".", beacon.Conf.Static.HostnameDomain.ASCII+".")
 
 			ips, ourIPs, notOurIPs, err := lookupIPs(&r.Autoconf.Errors, domConf.ClientSettingsDNSDomain.ASCII+".")
 			if err != nil {
@@ -1416,7 +1416,7 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 			}
 		}
 
-		addf(&r.Autoconf.Instructions, "Ensure a DNS CNAME record like the following exists:\n\n\tautoconfig.%s CNAME %s\n\nNote: the trailing dot is relevant, it makes the host name absolute instead of relative to the domain name.", domain.ASCII+".", mox.Conf.Static.HostnameDomain.ASCII+".")
+		addf(&r.Autoconf.Instructions, "Ensure a DNS CNAME record like the following exists:\n\n\tautoconfig.%s CNAME %s\n\nNote: the trailing dot is relevant, it makes the host name absolute instead of relative to the domain name.", domain.ASCII+".", beacon.Conf.Static.HostnameDomain.ASCII+".")
 
 		host := "autoconfig." + domain.ASCII + "."
 		ips, ourIPs, notOurIPs, err := lookupIPs(&r.Autoconf.Errors, host)
@@ -1443,7 +1443,7 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 		defer logPanic(ctx)
 		defer wg.Done()
 
-		addf(&r.Autodiscover.Instructions, "Ensure DNS records like the following exist:\n\n\t_autodiscover._tcp.%s SRV 0 1 443 %s\n\tautoconfig.%s CNAME %s\n\nNote: the trailing dots are relevant, it makes the host names absolute instead of relative to the domain name.", domain.ASCII+".", mox.Conf.Static.HostnameDomain.ASCII+".", domain.ASCII+".", mox.Conf.Static.HostnameDomain.ASCII+".")
+		addf(&r.Autodiscover.Instructions, "Ensure DNS records like the following exist:\n\n\t_autodiscover._tcp.%s SRV 0 1 443 %s\n\tautoconfig.%s CNAME %s\n\nNote: the trailing dots are relevant, it makes the host names absolute instead of relative to the domain name.", domain.ASCII+".", beacon.Conf.Static.HostnameDomain.ASCII+".", domain.ASCII+".", beacon.Conf.Static.HostnameDomain.ASCII+".")
 
 		_, srvs, _, err := resolver.LookupSRV(ctx, "autodiscover", "tcp", domain.ASCII+".")
 		if err != nil {
@@ -1484,7 +1484,7 @@ When enabling MTA-STS, or updating a policy, always update the policy first (thr
 // Domains returns all configured domain names, in UTF-8 for IDNA domains.
 func (Admin) Domains(ctx context.Context) []dns.Domain {
 	l := []dns.Domain{}
-	for _, s := range mox.Conf.Domains() {
+	for _, s := range beacon.Conf.Domains() {
 		d, _ := dns.ParseDomain(s)
 		l = append(l, d)
 	}
@@ -1495,7 +1495,7 @@ func (Admin) Domains(ctx context.Context) []dns.Domain {
 func (Admin) Domain(ctx context.Context, domain string) dns.Domain {
 	d, err := dns.ParseDomain(domain)
 	xcheckuserf(ctx, err, "parse domain")
-	_, ok := mox.Conf.Domain(d)
+	_, ok := beacon.Conf.Domain(d)
 	if !ok {
 		xcheckuserf(ctx, errors.New("no such domain"), "looking up domain")
 	}
@@ -1513,16 +1513,16 @@ func (Admin) ParseDomain(ctx context.Context, domain string) dns.Domain {
 func (Admin) DomainLocalparts(ctx context.Context, domain string) (localpartAccounts map[string]string) {
 	d, err := dns.ParseDomain(domain)
 	xcheckuserf(ctx, err, "parsing domain")
-	_, ok := mox.Conf.Domain(d)
+	_, ok := beacon.Conf.Domain(d)
 	if !ok {
 		xcheckuserf(ctx, errors.New("no such domain"), "looking up domain")
 	}
-	return mox.Conf.DomainLocalparts(d)
+	return beacon.Conf.DomainLocalparts(d)
 }
 
 // Accounts returns the names of all configured accounts.
 func (Admin) Accounts(ctx context.Context) []string {
-	l := mox.Conf.Accounts()
+	l := beacon.Conf.Accounts()
 	sort.Slice(l, func(i, j int) bool {
 		return l[i] < l[j]
 	})
@@ -1531,7 +1531,7 @@ func (Admin) Accounts(ctx context.Context) []string {
 
 // Account returns the parsed configuration of an account.
 func (Admin) Account(ctx context.Context, account string) map[string]any {
-	ac, ok := mox.Conf.Account(account)
+	ac, ok := beacon.Conf.Account(account)
 	if !ok {
 		xcheckuserf(ctx, errors.New("no such account"), "looking up account")
 	}
@@ -1548,11 +1548,11 @@ func (Admin) Account(ctx context.Context, account string) map[string]any {
 
 // ConfigFiles returns the paths and contents of the static and dynamic configuration files.
 func (Admin) ConfigFiles(ctx context.Context) (staticPath, dynamicPath, static, dynamic string) {
-	buf0, err := os.ReadFile(mox.ConfigStaticPath)
+	buf0, err := os.ReadFile(beacon.ConfigStaticPath)
 	xcheckf(ctx, err, "read static config file")
-	buf1, err := os.ReadFile(mox.ConfigDynamicPath)
+	buf1, err := os.ReadFile(beacon.ConfigDynamicPath)
 	xcheckf(ctx, err, "read dynamic config file")
-	return mox.ConfigStaticPath, mox.ConfigDynamicPath, string(buf0), string(buf1)
+	return beacon.ConfigStaticPath, beacon.ConfigDynamicPath, string(buf0), string(buf1)
 }
 
 // MTASTSPolicies returns all mtasts policies from the cache.
@@ -1774,7 +1774,7 @@ func (Admin) DNSBLStatus(ctx context.Context) map[string]map[string]string {
 func dnsblsStatus(ctx context.Context, log mlog.Log, resolver dns.Resolver) map[string]map[string]string {
 	// todo: check health before using dnsbl?
 	var dnsbls []dns.Domain
-	if l, ok := mox.Conf.Static.Listeners["public"]; ok {
+	if l, ok := beacon.Conf.Static.Listeners["public"]; ok {
 		for _, dnsbl := range l.SMTP.DNSBLs {
 			zone, err := dns.ParseDomain(dnsbl)
 			xcheckf(ctx, err, "parse dnsbl zone")
@@ -1816,7 +1816,7 @@ func (Admin) DomainRecords(ctx context.Context, domain string) []string {
 func DomainRecords(ctx context.Context, log mlog.Log, domain string) []string {
 	d, err := dns.ParseDomain(domain)
 	xcheckuserf(ctx, err, "parsing domain")
-	dc, ok := mox.Conf.Domain(d)
+	dc, ok := beacon.Conf.Domain(d)
 	if !ok {
 		xcheckuserf(ctx, errors.New("unknown domain"), "lookup domain")
 	}
@@ -1827,9 +1827,9 @@ func DomainRecords(ctx context.Context, log mlog.Log, domain string) []string {
 	}
 
 	var certIssuerDomainName, acmeAccountURI string
-	public := mox.Conf.Static.Listeners["public"]
+	public := beacon.Conf.Static.Listeners["public"]
 	if public.TLS != nil && public.TLS.ACME != "" {
-		acme, ok := mox.Conf.Static.ACME[public.TLS.ACME]
+		acme, ok := beacon.Conf.Static.ACME[public.TLS.ACME]
 		if ok && acme.Manager.Manager.Client != nil {
 			certIssuerDomainName = acme.IssuerDomainName
 			acc, err := acme.Manager.Manager.Client.GetReg(ctx, "")
@@ -1840,7 +1840,7 @@ func DomainRecords(ctx context.Context, log mlog.Log, domain string) []string {
 		}
 	}
 
-	records, err := mox.DomainRecords(dc, d, result.Authentic, certIssuerDomainName, acmeAccountURI)
+	records, err := beacon.DomainRecords(dc, d, result.Authentic, certIssuerDomainName, acmeAccountURI)
 	xcheckf(ctx, err, "dns records")
 	return records
 }
@@ -1850,7 +1850,7 @@ func (Admin) DomainAdd(ctx context.Context, domain, accountName, localpart strin
 	d, err := dns.ParseDomain(domain)
 	xcheckuserf(ctx, err, "parsing domain")
 
-	err = mox.DomainAdd(ctx, d, accountName, smtp.Localpart(localpart))
+	err = beacon.DomainAdd(ctx, d, accountName, smtp.Localpart(localpart))
 	xcheckf(ctx, err, "adding domain")
 }
 
@@ -1859,32 +1859,32 @@ func (Admin) DomainRemove(ctx context.Context, domain string) {
 	d, err := dns.ParseDomain(domain)
 	xcheckuserf(ctx, err, "parsing domain")
 
-	err = mox.DomainRemove(ctx, d)
+	err = beacon.DomainRemove(ctx, d)
 	xcheckf(ctx, err, "removing domain")
 }
 
 // AccountAdd adds existing a new account, with an initial email address, and
 // reloads the configuration.
 func (Admin) AccountAdd(ctx context.Context, accountName, address string) {
-	err := mox.AccountAdd(ctx, accountName, address)
+	err := beacon.AccountAdd(ctx, accountName, address)
 	xcheckf(ctx, err, "adding account")
 }
 
 // AccountRemove removes an existing account and reloads the configuration.
 func (Admin) AccountRemove(ctx context.Context, accountName string) {
-	err := mox.AccountRemove(ctx, accountName)
+	err := beacon.AccountRemove(ctx, accountName)
 	xcheckf(ctx, err, "removing account")
 }
 
 // AddressAdd adds a new address to the account, which must already exist.
 func (Admin) AddressAdd(ctx context.Context, address, accountName string) {
-	err := mox.AddressAdd(ctx, address, accountName)
+	err := beacon.AddressAdd(ctx, address, accountName)
 	xcheckf(ctx, err, "adding address")
 }
 
 // AddressRemove removes an existing address.
 func (Admin) AddressRemove(ctx context.Context, address string) {
-	err := mox.AddressRemove(ctx, address)
+	err := beacon.AddressRemove(ctx, address)
 	xcheckf(ctx, err, "removing address")
 }
 
@@ -1908,17 +1908,17 @@ func (Admin) SetPassword(ctx context.Context, accountName, password string) {
 
 // SetAccountLimits set new limits on outgoing messages for an account.
 func (Admin) SetAccountLimits(ctx context.Context, accountName string, maxOutgoingMessagesPerDay, maxFirstTimeRecipientsPerDay int, maxMsgSize int64) {
-	err := mox.AccountLimitsSave(ctx, accountName, maxOutgoingMessagesPerDay, maxFirstTimeRecipientsPerDay, maxMsgSize)
+	err := beacon.AccountLimitsSave(ctx, accountName, maxOutgoingMessagesPerDay, maxFirstTimeRecipientsPerDay, maxMsgSize)
 	xcheckf(ctx, err, "saving account limits")
 }
 
 // ClientConfigsDomain returns configurations for email clients, IMAP and
 // Submission (SMTP) for the domain.
-func (Admin) ClientConfigsDomain(ctx context.Context, domain string) mox.ClientConfigs {
+func (Admin) ClientConfigsDomain(ctx context.Context, domain string) beacon.ClientConfigs {
 	d, err := dns.ParseDomain(domain)
 	xcheckuserf(ctx, err, "parsing domain")
 
-	cc, err := mox.ClientConfigsDomain(d)
+	cc, err := beacon.ClientConfigsDomain(d)
 	xcheckf(ctx, err, "client config for domain")
 	return cc
 }
@@ -1967,7 +1967,7 @@ func (Admin) QueueSaveRequireTLS(ctx context.Context, id int64, requireTLS *bool
 // LogLevels returns the current log levels.
 func (Admin) LogLevels(ctx context.Context) map[string]string {
 	m := map[string]string{}
-	for pkg, level := range mox.Conf.LogLevels() {
+	for pkg, level := range beacon.Conf.LogLevels() {
 		s, ok := mlog.LevelStrings[level]
 		if !ok {
 			s = level.String()
@@ -1983,17 +1983,17 @@ func (Admin) LogLevelSet(ctx context.Context, pkg string, levelStr string) {
 	if !ok {
 		xcheckuserf(ctx, errors.New("unknown"), "lookup level")
 	}
-	mox.Conf.LogLevelSet(pkglog.WithContext(ctx), pkg, level)
+	beacon.Conf.LogLevelSet(pkglog.WithContext(ctx), pkg, level)
 }
 
 // LogLevelRemove removes a log level for a package, which cannot be the empty string.
 func (Admin) LogLevelRemove(ctx context.Context, pkg string) {
-	mox.Conf.LogLevelRemove(pkglog.WithContext(ctx), pkg)
+	beacon.Conf.LogLevelRemove(pkglog.WithContext(ctx), pkg)
 }
 
 // CheckUpdatesEnabled returns whether checking for updates is enabled.
 func (Admin) CheckUpdatesEnabled(ctx context.Context) bool {
-	return mox.Conf.Static.CheckUpdates
+	return beacon.Conf.Static.CheckUpdates
 }
 
 // WebserverConfig is the combination of WebDomainRedirects and WebHandlers
@@ -2012,7 +2012,7 @@ func (Admin) WebserverConfig(ctx context.Context) (conf WebserverConfig) {
 }
 
 func webserverConfig() WebserverConfig {
-	r, l := mox.Conf.WebServer()
+	r, l := beacon.Conf.WebServer()
 	x := make([][2]dns.Domain, 0, len(r))
 	xs := make([][2]string, 0, len(r))
 	for k, v := range r {
@@ -2058,7 +2058,7 @@ func (Admin) WebserverConfigSave(ctx context.Context, oldConf, newConf Webserver
 		domainRedirects[x[0]] = x[1]
 	}
 
-	err := mox.WebserverConfigSet(ctx, domainRedirects, newConf.WebHandlers)
+	err := beacon.WebserverConfigSet(ctx, domainRedirects, newConf.WebHandlers)
 	xcheckf(ctx, err, "saving webserver config")
 
 	savedConf = webserverConfig()
@@ -2068,7 +2068,7 @@ func (Admin) WebserverConfigSave(ctx context.Context, oldConf, newConf Webserver
 
 // Transports returns the configured transports, for sending email.
 func (Admin) Transports(ctx context.Context) map[string]config.Transport {
-	return mox.Conf.Static.Transports
+	return beacon.Conf.Static.Transports
 }
 
 // DMARCEvaluationStats returns a map of all domains with evaluations to a count of

@@ -12,8 +12,8 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // Apple software isn't good at autoconfig/autodiscovery, but it can import a
@@ -122,7 +122,7 @@ func MobileConfig(addresses []string, fullName string) ([]byte, error) {
 		return nil, fmt.Errorf("parsing address: %v", err)
 	}
 
-	config, err := mox.ClientConfigDomain(addr.Domain)
+	config, err := beacon.ClientConfigDomain(addr.Domain)
 	if err != nil {
 		return nil, fmt.Errorf("getting config for domain: %v", err)
 	}
@@ -134,7 +134,7 @@ func MobileConfig(addresses []string, fullName string) ([]byte, error) {
 
 	// Apple software wants UUIDs... We generate them deterministically based on address
 	// and our code (through key, which we must change if code changes).
-	const key = "mox0"
+	const key = "beacon0"
 	uuid := func(prefix string) string {
 		mac := hmac.New(sha256.New, []byte(key))
 		mac.Write([]byte(prefix + "\n" + "\n" + strings.Join(addresses, ",")))
@@ -175,12 +175,12 @@ func MobileConfig(addresses []string, fullName string) ([]byte, error) {
 					"IncomingMailServerUsername":             addresses[0],
 					"IncomingMailServerHostName":             config.IMAP.Host.ASCII,
 					"IncomingMailServerPortNumber":           config.IMAP.Port,
-					"IncomingMailServerUseSSL":               config.IMAP.TLSMode == mox.TLSModeImmediate,
+					"IncomingMailServerUseSSL":               config.IMAP.TLSMode == beacon.TLSModeImmediate,
 					"OutgoingMailServerAuthentication":       "EmailAuthCRAMMD5", // SCRAM not an option at time of writing...
 					"OutgoingMailServerHostName":             config.Submission.Host.ASCII,
 					"OutgoingMailServerPortNumber":           config.Submission.Port,
 					"OutgoingMailServerUsername":             addresses[0],
-					"OutgoingMailServerUseSSL":               config.Submission.TLSMode == mox.TLSModeImmediate,
+					"OutgoingMailServerUseSSL":               config.Submission.TLSMode == beacon.TLSModeImmediate,
 					"OutgoingPasswordSameAsIncomingPassword": true,
 					"PayloadIdentifier":                      reverseAddr + ".email.account",
 					"PayloadType":                            "com.apple.mail.managed",

@@ -20,17 +20,17 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
-// ctl represents a connection to the ctl unix domain socket of a running mox instance.
+// ctl represents a connection to the ctl unix domain socket of a running beacon instance.
 // ctl provides functions to read/write commands/responses/data streams.
 type ctl struct {
 	cmd  string // Set for server-side of commands.
@@ -42,7 +42,7 @@ type ctl struct {
 
 // xctl opens a ctl connection.
 func xctl() *ctl {
-	p := mox.DataDirPath("ctl")
+	p := beacon.DataDirPath("ctl")
 	conn, err := net.Dial("unix", p)
 	if err != nil {
 		log.Fatalf("connecting to control socket at %q: %v", p, err)
@@ -488,7 +488,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		localpart := ctl.xread()
 		d, err := dns.ParseDomain(domain)
 		ctl.xcheck(err, "parsing domain")
-		err = mox.DomainAdd(ctx, d, account, smtp.Localpart(localpart))
+		err = beacon.DomainAdd(ctx, d, account, smtp.Localpart(localpart))
 		ctl.xcheck(err, "adding domain")
 		ctl.xwriteok()
 
@@ -501,7 +501,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		domain := ctl.xread()
 		d, err := dns.ParseDomain(domain)
 		ctl.xcheck(err, "parsing domain")
-		err = mox.DomainRemove(ctx, d)
+		err = beacon.DomainRemove(ctx, d)
 		ctl.xcheck(err, "removing domain")
 		ctl.xwriteok()
 
@@ -514,7 +514,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		*/
 		account := ctl.xread()
 		address := ctl.xread()
-		err := mox.AccountAdd(ctx, account, address)
+		err := beacon.AccountAdd(ctx, account, address)
 		ctl.xcheck(err, "adding account")
 		ctl.xwriteok()
 
@@ -525,7 +525,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		< "ok" or error
 		*/
 		account := ctl.xread()
-		err := mox.AccountRemove(ctx, account)
+		err := beacon.AccountRemove(ctx, account)
 		ctl.xcheck(err, "removing account")
 		ctl.xwriteok()
 
@@ -538,7 +538,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		*/
 		address := ctl.xread()
 		account := ctl.xread()
-		err := mox.AddressAdd(ctx, address, account)
+		err := beacon.AddressAdd(ctx, address, account)
 		ctl.xcheck(err, "adding address")
 		ctl.xwriteok()
 
@@ -549,7 +549,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		< "ok" or error
 		*/
 		address := ctl.xread()
-		err := mox.AddressRemove(ctx, address)
+		err := beacon.AddressRemove(ctx, address)
 		ctl.xcheck(err, "removing address")
 		ctl.xwriteok()
 
@@ -560,7 +560,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		< stream
 		*/
 		ctl.xwriteok()
-		l := mox.Conf.LogLevels()
+		l := beacon.Conf.LogLevels()
 		keys := []string{}
 		for k := range l {
 			keys = append(keys, k)
@@ -588,13 +588,13 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		pkg := ctl.xread()
 		levelstr := ctl.xread()
 		if levelstr == "" {
-			mox.Conf.LogLevelRemove(ctl.log, pkg)
+			beacon.Conf.LogLevelRemove(ctl.log, pkg)
 		} else {
 			level, ok := mlog.Levels[levelstr]
 			if !ok {
 				ctl.xerror("bad level")
 			}
-			mox.Conf.LogLevelSet(ctl.log, pkg, level)
+			beacon.Conf.LogLevelSet(ctl.log, pkg, level)
 		}
 		ctl.xwriteok()
 
@@ -621,7 +621,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 			}
 
 			// Remove existing junk filter files.
-			basePath := mox.DataDirPath("accounts")
+			basePath := beacon.DataDirPath("accounts")
 			dbPath := filepath.Join(basePath, acc.Name, "junkfilter.db")
 			bloomPath := filepath.Join(basePath, acc.Name, "junkfilter.bloom")
 			err := os.Remove(dbPath)
@@ -848,7 +848,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		if accountOpt != "" {
 			xfixmsgsize(accountOpt)
 		} else {
-			for i, accName := range mox.Conf.Accounts() {
+			for i, accName := range beacon.Conf.Accounts() {
 				var line string
 				if i > 0 {
 					line = "\n"
@@ -859,7 +859,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 			}
 		}
 		if foundProblem {
-			_, err := fmt.Fprintf(w, "\nProblems were found and fixed. You should invalidate messages stored at imap clients with the \"mox bumpuidvalidity account [mailbox]\" command.\n")
+			_, err := fmt.Fprintf(w, "\nProblems were found and fixed. You should invalidate messages stored at imap clients with the \"beacon bumpuidvalidity account [mailbox]\" command.\n")
 			ctl.xcheck(err, "write")
 		}
 
@@ -931,7 +931,7 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 		if accountOpt != "" {
 			xreparseAccount(accountOpt)
 		} else {
-			for i, accName := range mox.Conf.Accounts() {
+			for i, accName := range beacon.Conf.Accounts() {
 				var line string
 				if i > 0 {
 					line = "\n"
@@ -980,14 +980,14 @@ func servectlcmd(ctx context.Context, ctl *ctl, shutdown func()) {
 			err = acc.AssignThreads(ctx, ctl.log, nil, 0, 50000, w)
 			ctl.xcheck(err, "reassign threads")
 
-			_, err = fmt.Fprintf(w, "Threads reassigned. You should invalidate messages stored at imap clients with the \"mox bumpuidvalidity account [mailbox]\" command.\n")
+			_, err = fmt.Fprintf(w, "Threads reassigned. You should invalidate messages stored at imap clients with the \"beacon bumpuidvalidity account [mailbox]\" command.\n")
 			ctl.xcheck(err, "write")
 		}
 
 		if accountOpt != "" {
 			xreassignThreads(accountOpt)
 		} else {
-			for i, accName := range mox.Conf.Accounts() {
+			for i, accName := range beacon.Conf.Accounts() {
 				var line string
 				if i > 0 {
 					line = "\n"

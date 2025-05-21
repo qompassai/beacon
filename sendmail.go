@@ -19,11 +19,11 @@ import (
 
 	"github.com/mjl-/sconf"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
 )
 
 var submitconf struct {
@@ -49,8 +49,8 @@ const (
 )
 
 func cmdConfigDescribeSendmail(c *cmd) {
-	c.params = ">/etc/moxsubmit.conf"
-	c.help = `Describe configuration for mox when invoked as sendmail.`
+	c.params = ">/etc/beaconsubmit.conf"
+	c.help = `Describe configuration for beacon when invoked as sendmail.`
 	if len(c.Parse()) != 0 {
 		c.Usage()
 	}
@@ -66,12 +66,12 @@ func cmdSendmail(c *cmd) {
 If invoked as "sendmail", it will act as sendmail for sending messages. Its
 intention is to let processes like cron send emails. Messages are submitted to
 an actual mail server over SMTP. The destination mail server and credentials are
-configured in /etc/moxsubmit.conf, see mox config describe-sendmail. The From
+configured in /etc/beaconsubmit.conf, see beacon config describe-sendmail. The From
 message header is rewritten to the configured address. When the addressee
 appears to be a local user, because without @, the message is sent to the
 configured default address.
 
-If submitting an email fails, it is added to a directory moxsubmit.failures in
+If submitting an email fails, it is added to a directory beaconsubmit.failures in
 the user's home directory.
 
 Most flags are ignored to fake compatibility with other sendmail
@@ -79,15 +79,15 @@ implementations. A single recipient or the -t flag with a To-header is required.
 With the -t flag, Cc and Bcc headers are not handled specially, so Bcc is not
 removed and the addresses do not receive the email.
 
-/etc/moxsubmit.conf should be group-readable and not readable by others and this
+/etc/beaconsubmit.conf should be group-readable and not readable by others and this
 binary should be setgid that group:
 
-	groupadd moxsubmit
-	install -m 2755 -o root -g moxsubmit mox /usr/sbin/sendmail
-	touch /etc/moxsubmit.conf
-	chown root:moxsubmit /etc/moxsubmit.conf
-	chmod 640 /etc/moxsubmit.conf
-	# edit /etc/moxsubmit.conf
+	groupadd beaconsubmit
+	install -m 2755 -o root -g beaconsubmit beacon /usr/sbin/sendmail
+	touch /etc/beaconsubmit.conf
+	chown root:beaconsubmit /etc/beaconsubmit.conf
+	chmod 640 /etc/beaconsubmit.conf
+	# edit /etc/beaconsubmit.conf
 `
 
 	// We are faking that we parse flags, this is non-standard, we want to be lax and ignore most flags.
@@ -124,8 +124,8 @@ binary should be setgid that group:
 	}
 	args = args[o:]
 
-	// todo: perhaps allow configuration of config file through environment variable? have to keep in mind that mox with setgid moxsubmit would be reading the file.
-	const confPath = "/etc/moxsubmit.conf"
+	// todo: perhaps allow configuration of config file through environment variable? have to keep in mind that beacon with setgid beaconsubmit would be reading the file.
+	const confPath = "/etc/beaconsubmit.conf"
 	err := sconf.ParseFile(confPath, &submitconf)
 	xcheckf(err, "parsing config")
 
@@ -235,7 +235,7 @@ binary should be setgid that group:
 		log.Printf("submit failed: %s: %s", fmt.Sprintf(format, args...), err)
 		homedir, err := os.UserHomeDir()
 		xcheckf(err, "finding homedir for storing message after failed delivery")
-		maildir := filepath.Join(homedir, "moxsubmit.failures")
+		maildir := filepath.Join(homedir, "beaconsubmit.failures")
 		os.Mkdir(maildir, 0700)
 		f, err := os.CreateTemp(maildir, "newmsg.")
 		xcheckf(err, "creating temp file for storing message after failed delivery")
@@ -322,7 +322,7 @@ binary should be setgid that group:
 	// todo: implement SRV and DANE, allowing for a simpler config file (just the email address & password)
 	opts := smtpclient.Opts{
 		Auth:    auth,
-		RootCAs: mox.Conf.Static.TLS.CertPool,
+		RootCAs: beacon.Conf.Static.TLS.CertPool,
 	}
 	client, err := smtpclient.New(ctx, c.log.Logger, conn, tlsMode, tlsPKIX, ourHostname, remoteHostname, opts)
 	xsavecheckf(err, "open smtp session")

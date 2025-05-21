@@ -37,38 +37,38 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 var (
 	metricReport = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_tlsrptsend_report_queued_total",
+			Name: "beacon_tlsrptsend_report_queued_total",
 			Help: "Total messages with TLS reports queued.",
 		},
 	)
 	metricReportError = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_tlsrptsend_report_error_total",
+			Name: "beacon_tlsrptsend_report_error_total",
 			Help: "Total errors while composing or queueing TLS reports.",
 		},
 	)
 )
 
-var jitterRand = mox.NewPseudoRand()
+var jitterRand = beacon.NewPseudoRand()
 
 // time to sleep until sending reports at midnight t, replaced by tests.
 // Jitter so we don't cause load at exactly midnight, other processes may
@@ -96,7 +96,7 @@ func Start(resolver dns.Resolver) {
 		timer := time.NewTimer(time.Hour) // Reset below.
 		defer timer.Stop()
 
-		ctx := mox.Shutdown
+		ctx := beacon.Shutdown
 
 		db := tlsrptdb.ResultDB
 		if db == nil {
@@ -117,7 +117,7 @@ func Start(resolver dns.Resolver) {
 			_, err := bstore.QueryDB[tlsrptdb.TLSResult](ctx, db).FilterLess("DayUTC", endUTC.Add((-48-12)*time.Hour).Format("20060102")).Delete()
 			log.Check(err, "removing stale tls results from database")
 
-			clog := log.WithCid(mox.Cid())
+			clog := log.WithCid(beacon.Cid())
 			clog.Info("sending tls reports", slog.String("day", dayUTC))
 			if err := sendReports(ctx, clog, resolver, db, dayUTC, endUTC); err != nil {
 				clog.Errorx("sending tls reports", err)
@@ -236,7 +236,7 @@ func sendReports(ctx context.Context, log mlog.Log, resolver dns.Resolver, db *b
 				}()
 				defer wg.Done()
 
-				rlog := log.WithCid(mox.Cid()).With(slog.String("policydomain", k.policyDomain),
+				rlog := log.WithCid(beacon.Cid()).With(slog.String("policydomain", k.policyDomain),
 					slog.String("daytutc", k.dayUTC),
 					slog.Bool("isrcptdom", isRcptDom))
 				rlog.Info("looking to send tls report for domain")
@@ -291,10 +291,10 @@ func sendReportDomain(ctx context.Context, log mlog.Log, resolver dns.Resolver, 
 	// Reports need to be DKIM-signed by the submitter domain. Lookup the DKIM
 	// configuration now. If we don't have any, there is no point sending reports.
 	// todo spec: ../rfc/8460:322 "reporting domain" is a bit ambiguous. submitter domain is used in other places. it may be helpful in practice to allow dmarc-relaxed-like matching of the signing domain, so an address postmaster at mail host can send the reports using dkim keys at a higher-up domain (e.g. the publicsuffix domain).
-	fromDom := mox.Conf.Static.HostnameDomain
+	fromDom := beacon.Conf.Static.HostnameDomain
 	var confDKIM config.DKIM
 	for {
-		confDom, ok := mox.Conf.Domain(fromDom)
+		confDom, ok := beacon.Conf.Domain(fromDom)
 		if len(confDom.DKIM.Sign) > 0 {
 			confDKIM = confDom.DKIM
 			break
@@ -459,7 +459,7 @@ func sendReportDomain(ctx context.Context, log mlog.Log, resolver dns.Resolver, 
 		return true, nil
 	}
 
-	if !mox.Conf.Static.OutgoingTLSReportsForAllSuccess {
+	if !beacon.Conf.Static.OutgoingTLSReportsForAllSuccess {
 		var haveFailure bool
 		// Check there is at least one failure. If not, we don't send a report.
 		for _, r := range report.Policies {
@@ -586,7 +586,7 @@ Period: %s - %s UTC
 			continue
 		}
 
-		qm := queue.MakeMsg(mox.Conf.Static.Postmaster.Account, from.Path(), rcpt.Address.Path(), has8bit, smtputf8, msgSize, messageID, []byte(msgPrefix), nil)
+		qm := queue.MakeMsg(beacon.Conf.Static.Postmaster.Account, from.Path(), rcpt.Address.Path(), has8bit, smtputf8, msgSize, messageID, []byte(msgPrefix), nil)
 		// Don't try as long as regular deliveries, and stop before we would send the
 		// delayed DSN. Though we also won't send that due to IsTLSReport.
 		// ../rfc/8460:1077
@@ -646,10 +646,10 @@ func composeMessage(ctx context.Context, log mlog.Log, mf *os.File, policyDomain
 	xc.Header("TLS-Report-Submitter", fromAddr.Domain.ASCII)
 	// TLS failures should be ignored. ../rfc/8460:317 ../rfc/8460:1050
 	xc.Header("TLS-Required", "No")
-	messageID = fmt.Sprintf("<%s>", mox.MessageIDGen(xc.SMTPUTF8))
+	messageID = fmt.Sprintf("<%s>", beacon.MessageIDGen(xc.SMTPUTF8))
 	xc.Header("Message-Id", messageID)
 	xc.Header("Date", time.Now().Format(message.RFC5322Z))
-	xc.Header("User-Agent", "mox/"+moxvar.Version)
+	xc.Header("User-Agent", "beacon/"+beaconvar.Version)
 	xc.Header("MIME-Version", "1.0")
 
 	// Multipart message, with a text/plain and the report attached.
@@ -677,8 +677,8 @@ func composeMessage(ctx context.Context, log mlog.Log, mf *os.File, policyDomain
 	ahdr.Set("Content-Transfer-Encoding", "base64")
 	ap, err := mp.CreatePart(ahdr)
 	xc.Checkf(err, "adding tls report to message")
-	wc := moxio.Base64Writer(ap)
-	_, err = io.Copy(wc, &moxio.AtReader{R: reportFile})
+	wc := beaconio.Base64Writer(ap)
+	_, err = io.Copy(wc, &beaconio.AtReader{R: reportFile})
 	xc.Checkf(err, "adding attachment")
 	err = wc.Close()
 	xc.Checkf(err, "flushing attachment")
@@ -688,7 +688,7 @@ func composeMessage(ctx context.Context, log mlog.Log, mf *os.File, policyDomain
 
 	xc.Flush()
 
-	selectors := mox.DKIMSelectors(confDKIM)
+	selectors := beacon.DKIMSelectors(confDKIM)
 	for i, sel := range selectors {
 		// Also sign the TLS-Report headers. ../rfc/8460:940
 		sel.Headers = append(append([]string{}, sel.Headers...), "TLS-Report-Domain", "TLS-Report-Submitter")

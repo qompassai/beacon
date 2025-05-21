@@ -196,7 +196,7 @@ func TestScram(t *testing.T) {
 			MaxVersion:         maxTLSVersion,
 		})
 		tlsServer := tls.Server(server, &tls.Config{
-			Certificates: []tls.Certificate{fakeCert(t, "mox.example", false)},
+			Certificates: []tls.Certificate{fakeCert(t, "beacon.example", false)},
 			MaxVersion:   maxTLSVersion,
 		})
 		errc := make(chan error, 1)
@@ -235,12 +235,12 @@ func TestScram(t *testing.T) {
 	}
 
 	run(nil, "user", "", "pencil", 4096, "", "")
-	run(nil, "mjl@mox.example", "", "testtest", 4096, "", "")
-	run(nil, "mjl@mox.example", "", "short", 4096, "", "")
-	run(nil, "mjl@mox.example", "", "short", 2048, "", "")
-	run(nil, "mjl@mox.example", "mjl@mox.example", "testtest", 4096, "", "")
-	run(nil, "mjl@mox.example", "other@mox.example", "testtest", 4096, "", "")
-	run(nil, "mjl@mox.example", "other@mox.example", "testtest", 4096, "", "")
+	run(nil, "mjl@beacon.example", "", "testtest", 4096, "", "")
+	run(nil, "mjl@beacon.example", "", "short", 4096, "", "")
+	run(nil, "mjl@beacon.example", "", "short", 2048, "", "")
+	run(nil, "mjl@beacon.example", "mjl@beacon.example", "testtest", 4096, "", "")
+	run(nil, "mjl@beacon.example", "other@beacon.example", "testtest", 4096, "", "")
+	run(nil, "mjl@beacon.example", "other@beacon.example", "testtest", 4096, "", "")
 	run(ErrUnsafe, "user", "", "pencil", 1, "", "")                // Few iterations.
 	run(ErrUnsafe, "user", "", "pencil", 2048, "short", "")        // Short client nonce.
 	run(ErrUnsafe, "user", "", "pencil", 2048, "test1234", "test") // Server added too few random data.

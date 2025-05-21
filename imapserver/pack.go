@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 type token interface {

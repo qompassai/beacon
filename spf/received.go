@@ -4,8 +4,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
 )
 
 // ../rfc/7208:2083

@@ -8,11 +8,11 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/spf"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/spf"
 )
 
 func ExampleLookup() {
@@ -75,7 +75,7 @@ func ExampleVerify() {
 }
 
 func ExampleParseRecord() {
-	txt := "v=DMARC1; p=reject; rua=mailto:postmaster@mox.example"
+	txt := "v=DMARC1; p=reject; rua=mailto:postmaster@beacon.example"
 
 	record, isdmarc, err := dmarc.ParseRecord(txt)
 	if err != nil {

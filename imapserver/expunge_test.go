@@ -3,7 +3,7 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestExpunge(t *testing.T) {
@@ -14,10 +14,10 @@ func TestExpunge(t *testing.T) {
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Select("inbox")
 
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 	tc2.client.Select("inbox")
 
 	tc.transactf("bad", "expunge leftover") // Leftover data.

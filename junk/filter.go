@@ -25,8 +25,8 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
 )
 
 var (

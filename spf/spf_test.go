@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/smtp"
 )
 
 var pkglog = mlog.New("spf", nil)
@@ -62,21 +62,21 @@ func TestExpand(t *testing.T) {
 		domain:          dns.Domain{ASCII: "email.example.com"},
 
 		MailFromLocalpart: "x",
-		MailFromDomain:    dns.Domain{ASCII: "mox.example"},
-		HelloDomain:       dns.IPDomain{Domain: dns.Domain{ASCII: "mx.mox.example"}},
+		MailFromDomain:    dns.Domain{ASCII: "beacon.example"},
+		HelloDomain:       dns.IPDomain{Domain: dns.Domain{ASCII: "mx.beacon.example"}},
 		LocalIP:           net.ParseIP("10.10.10.10"),
 		LocalHostname:     dns.Domain{ASCII: "self.example"},
 	}
 
 	resolver := dns.MockResolver{
 		PTR: map[string][]string{
-			"10.0.0.1": {"other.example.", "sub.mx.mox.example.", "mx.mox.example."},
-			"10.0.0.2": {"other.example.", "sub.mx.mox.example.", "mx.mox.example."},
-			"10.0.0.3": {"other.example.", "sub.mx.mox.example.", "mx.mox.example."},
+			"10.0.0.1": {"other.example.", "sub.mx.beacon.example.", "mx.beacon.example."},
+			"10.0.0.2": {"other.example.", "sub.mx.beacon.example.", "mx.beacon.example."},
+			"10.0.0.3": {"other.example.", "sub.mx.beacon.example.", "mx.beacon.example."},
 		},
 		A: map[string][]string{
-			"mx.mox.example.":     {"10.0.0.1"},
-			"sub.mx.mox.example.": {"10.0.0.2"},
+			"mx.beacon.example.":     {"10.0.0.1"},
+			"sub.mx.beacon.example.": {"10.0.0.2"},
 			"other.example.":      {"10.0.0.3"},
 		},
 	}
@@ -155,8 +155,8 @@ func TestExpand(t *testing.T) {
 
 	// Additional.
 	testDNS("%%%-%_", "10.0.0.1", "%%20 ")
-	testDNS("%{p}", "10.0.0.1", "mx.mox.example.")
-	testDNS("%{p}", "10.0.0.2", "sub.mx.mox.example.")
+	testDNS("%{p}", "10.0.0.1", "mx.beacon.example.")
+	testDNS("%{p}", "10.0.0.2", "sub.mx.beacon.example.")
 	testDNS("%{p}", "10.0.0.3", "other.example.")
 	testDNS("%{p}", "10.0.0.4", "unknown")
 	testExpl("%{c}", "10.0.0.1", "10.10.10.10")
@@ -180,7 +180,7 @@ func TestExpand(t *testing.T) {
 	testDNS("x."+name, "10.0.0.1", "x."+name)               // Still fits.
 	testDNS("xx."+name, "10.0.0.1", name)                   // Does not fit, "xx." is truncated to make it fit.
 	testDNS("%{p}..", "10.0.0.1", "")
-	testDNS("%{h}", "10.0.0.1", "mx.mox.example")
+	testDNS("%{h}", "10.0.0.1", "mx.beacon.example")
 }
 
 func TestVerify(t *testing.T) {
@@ -384,7 +384,7 @@ func TestVerifyScenarios(t *testing.T) {
 
 	r := dns.MockResolver{
 		TXT: map[string][]string{
-			"mox.example.":                {"v=spf1 ip6:2001:db8::0/64 -all"},
+			"beacon.example.":                {"v=spf1 ip6:2001:db8::0/64 -all"},
 			"void.example.":               {"v=spf1 exists:absent1.example exists:absent2.example ip4:1.2.3.4 exists:absent3.example -all"},
 			"loop.example.":               {"v=spf1 include:loop.example -all"},
 			"a-unknown.example.":          {"v=spf1 a:absent.example"},
@@ -407,7 +407,7 @@ func TestVerifyScenarios(t *testing.T) {
 			"details-multi.expl.example.": {"your ip ", "%{i} is not allowed"},
 		},
 		A: map[string][]string{
-			"mail.mox.example.":     {"10.0.0.1"},
+			"mail.beacon.example.":     {"10.0.0.1"},
 			"mx1.many-mx.example.":  {"10.0.1.1"},
 			"mx2.many-mx.example.":  {"10.0.1.2"},
 			"mx3.many-mx.example.":  {"10.0.1.3"},
@@ -421,7 +421,7 @@ func TestVerifyScenarios(t *testing.T) {
 			"mx11.many-mx.example.": {"10.0.1.11"},
 		},
 		AAAA: map[string][]string{
-			"mail.mox.example.": {"2001:db8::1"},
+			"mail.beacon.example.": {"2001:db8::1"},
 		},
 		MX: map[string][]*net.MX{
 			"no-mx.example.": {{Host: ".", Pref: 10}},
@@ -440,7 +440,7 @@ func TestVerifyScenarios(t *testing.T) {
 			},
 		},
 		PTR: map[string][]string{
-			"2001:db8::1": {"mail.mox.example."},
+			"2001:db8::1": {"mail.beacon.example."},
 			"10.0.1.1":    {"mx1.many-mx.example.", "mx2.many-mx.example.", "mx3.many-mx.example.", "mx4.many-mx.example.", "mx5.many-mx.example.", "mx6.many-mx.example.", "mx7.many-mx.example.", "mx8.many-mx.example.", "mx9.many-mx.example.", "mx10.many-mx.example.", "mx11.many-mx.example."},
 		},
 		Fail: []string{
@@ -449,12 +449,12 @@ func TestVerifyScenarios(t *testing.T) {
 	}
 
 	// IPv6 remote IP.
-	test(r, Args{RemoteIP: net.ParseIP("2001:db8::1"), MailFromLocalpart: "x", MailFromDomain: dns.Domain{ASCII: "mox.example"}}, StatusPass, "", "", nil)
-	test(r, Args{RemoteIP: net.ParseIP("2001:fa11::1"), MailFromLocalpart: "x", MailFromDomain: dns.Domain{ASCII: "mox.example"}}, StatusFail, "", "", nil)
+	test(r, Args{RemoteIP: net.ParseIP("2001:db8::1"), MailFromLocalpart: "x", MailFromDomain: dns.Domain{ASCII: "beacon.example"}}, StatusPass, "", "", nil)
+	test(r, Args{RemoteIP: net.ParseIP("2001:fa11::1"), MailFromLocalpart: "x", MailFromDomain: dns.Domain{ASCII: "beacon.example"}}, StatusFail, "", "", nil)
 
 	// Use EHLO identity.
-	test(r, Args{RemoteIP: net.ParseIP("2001:db8::1"), HelloDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "mox.example"}}}, StatusPass, "", "", nil)
-	test(r, Args{RemoteIP: net.ParseIP("2001:db8::1"), HelloDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "mail.mox.example"}}}, StatusNone, "", "", ErrNoRecord)
+	test(r, Args{RemoteIP: net.ParseIP("2001:db8::1"), HelloDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "beacon.example"}}}, StatusPass, "", "", nil)
+	test(r, Args{RemoteIP: net.ParseIP("2001:db8::1"), HelloDomain: dns.IPDomain{Domain: dns.Domain{ASCII: "mail.beacon.example"}}}, StatusNone, "", "", ErrNoRecord)
 
 	// Too many void lookups.
 	test(r, Args{RemoteIP: net.ParseIP("1.2.3.4"), MailFromLocalpart: "x", MailFromDomain: dns.Domain{ASCII: "void.example"}}, StatusPass, "", "", nil)                        // IP found after 2 void lookups, but before 3rd.

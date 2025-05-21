@@ -5,17 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestIdle(t *testing.T) {
 	tc1 := start(t)
 	defer tc1.close()
-	tc1.transactf("ok", "login mjl@mox.example testtest")
+	tc1.transactf("ok", "login mjl@beacon.example testtest")
 
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
-	tc2.transactf("ok", "login mjl@mox.example testtest")
+	tc2.transactf("ok", "login mjl@beacon.example testtest")
 
 	tc1.transactf("ok", "select inbox")
 	tc2.transactf("ok", "select inbox")

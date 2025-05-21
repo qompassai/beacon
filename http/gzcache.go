@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 // todo: consider caching gzipped responses from forward handlers too. we would need to read the responses (handle up to perhaps 2mb), hash the data (blake2b seems fast), check if we have the gzip content for that hash, cache it on second request. keep around entries for non-yet-cached hashes, with some limit and lru eviction policy. we have to recognize some content-types as not applicable and do direct streaming compression, e.g. for text/event-stream. and we need to detect when backend server could be slowly sending out data and abort the caching attempt. downside is always that we need to read the whole response before and hash it before we can send our response. it is best if the backend just responds with gzip itself though. compression needs more cpu than hashing (at least 10x), but it's only worth it with enough hits.

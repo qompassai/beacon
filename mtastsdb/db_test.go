@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtasts"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtasts"
 )
 
 func tcheckf(t *testing.T, err error, format string, args ...any) {
@@ -24,11 +24,11 @@ func tcheckf(t *testing.T, err error, format string, args ...any) {
 }
 
 func TestDB(t *testing.T) {
-	mox.Shutdown = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/mtasts/fake.conf")
-	mox.Conf.Static.DataDir = "."
+	beacon.Shutdown = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/mtasts/fake.conf")
+	beacon.Conf.Static.DataDir = "."
 
-	dbpath := mox.DataDirPath("mtasts.db")
+	dbpath := beacon.DataDirPath("mtasts.db")
 	os.MkdirAll(filepath.Dir(dbpath), 0770)
 	os.Remove(dbpath)
 	defer os.Remove(dbpath)

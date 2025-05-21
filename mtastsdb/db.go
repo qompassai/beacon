@@ -23,17 +23,17 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 var (
 	metricGet = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_mtastsdb_get_total",
+			Name: "beacon_mtastsdb_get_total",
 			Help: "Number of Get by result.",
 		},
 		[]string{"result"},
@@ -75,7 +75,7 @@ func database(ctx context.Context) (rdb *bstore.DB, rerr error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if DB == nil {
-		p := mox.DataDirPath("mtasts.db")
+		p := beacon.DataDirPath("mtasts.db")
 		os.MkdirAll(filepath.Dir(p), 0770)
 		db, err := bstore.Open(ctx, p, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, DBTypes...)
 		if err != nil {
@@ -89,7 +89,7 @@ func database(ctx context.Context) (rdb *bstore.DB, rerr error) {
 // Init opens the database and starts a goroutine that refreshes policies in
 // the database, and keeps doing so periodically.
 func Init(refresher bool) error {
-	_, err := database(mox.Shutdown)
+	_, err := database(beacon.Shutdown)
 	if err != nil {
 		return err
 	}

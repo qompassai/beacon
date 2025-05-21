@@ -26,12 +26,12 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/stub"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/stub"
 )
 
 var (
@@ -133,7 +133,7 @@ func Sign(ctx context.Context, elog *slog.Logger, localpart smtp.Localpart, doma
 			slog.Duration("duration", time.Since(start)))
 	}()
 
-	hdrs, bodyOffset, err := parseHeaders(bufio.NewReader(&moxio.AtReader{R: msg}))
+	hdrs, bodyOffset, err := parseHeaders(bufio.NewReader(&beaconio.AtReader{R: msg}))
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", ErrHeaderMalformed, err)
 	}
@@ -219,7 +219,7 @@ func Sign(ctx context.Context, elog *slog.Logger, localpart smtp.Localpart, doma
 		if bh, ok := bodyHashes[hk]; ok {
 			sig.BodyHash = bh
 		} else {
-			br := bufio.NewReader(&moxio.AtReader{R: msg, Offset: int64(bodyOffset)})
+			br := bufio.NewReader(&beaconio.AtReader{R: msg, Offset: int64(bodyOffset)})
 			bh, err = bodyHash(h.New(), !sel.BodyRelaxed, br)
 			if err != nil {
 				return "", err
@@ -372,7 +372,7 @@ func Verify(ctx context.Context, elog *slog.Logger, resolver dns.Resolver, smtpu
 		}
 	}()
 
-	hdrs, bodyOffset, err := parseHeaders(bufio.NewReader(&moxio.AtReader{R: r}))
+	hdrs, bodyOffset, err := parseHeaders(bufio.NewReader(&beaconio.AtReader{R: r}))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrHeaderMalformed, err)
 	}
@@ -405,7 +405,7 @@ func Verify(ctx context.Context, elog *slog.Logger, resolver dns.Resolver, smtpu
 			continue
 		}
 
-		br := bufio.NewReader(&moxio.AtReader{R: r, Offset: int64(bodyOffset)})
+		br := bufio.NewReader(&beaconio.AtReader{R: r, Offset: int64(bodyOffset)})
 		status, txt, authentic, err := verifySignature(ctx, log.Logger, resolver, sig, h, canonHeaderSimple, canonDataSimple, hdrs, verifySig, br, ignoreTestMode)
 		results = append(results, Result{status, sig, txt, authentic, err})
 	}

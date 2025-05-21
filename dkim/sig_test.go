@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/smtp"
 )
 
 func TestSig(t *testing.T) {
@@ -69,18 +69,18 @@ func TestSig(t *testing.T) {
 		AlgorithmHash:    "sha256",
 		Signature:        xbase64("dGVzdAo="),
 		BodyHash:         xbase64("LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q="),
-		Domain:           xdomain("mox.example"),
+		Domain:           xdomain("beacon.example"),
 		SignedHeaders:    []string{"from", "to", "cc", "bcc", "date", "subject", "message-id"},
 		Selector:         xdomain("test"),
 		Canonicalization: "simple/relaxed",
 		Length:           10,
-		Identity:         &Identity{&empty, xdomain("sub.mox.example")},
+		Identity:         &Identity{&empty, xdomain("sub.beacon.example")},
 		QueryMethods:     []string{"dns/txt", "other"},
 		SignTime:         10,
 		ExpireTime:       100,
-		CopiedHeaders:    []string{"From:<mjl@mox.example>", "Subject:test | with pipe"},
+		CopiedHeaders:    []string{"From:<mjl@beacon.example>", "Subject:test | with pipe"},
 	}
-	test("dkim-signature: v = 1 ; a=ed25519-sha256; s=test; d=mox.example; h=from:to:cc:bcc:date:subject:message-id; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q= ; c=simple/relaxed; l=10; i=\"\"@sub.mox.example; q= dns/txt:other; t=10; x=100; z=From:<mjl@mox.example>|Subject:test=20=7C=20with=20pipe; unknown = must be ignored \r\n", true, sig1, nil)
+	test("dkim-signature: v = 1 ; a=ed25519-sha256; s=test; d=beacon.example; h=from:to:cc:bcc:date:subject:message-id; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q= ; c=simple/relaxed; l=10; i=\"\"@sub.beacon.example; q= dns/txt:other; t=10; x=100; z=From:<mjl@beacon.example>|Subject:test=20=7C=20with=20pipe; unknown = must be ignored \r\n", true, sig1, nil)
 
 	ulp := smtp.Localpart("møx")
 	sig2 := &Sig{
@@ -108,16 +108,16 @@ func TestSig(t *testing.T) {
 		AlgorithmHash:    "sha256",
 		Signature:        xbase64("dGVzdAo="),
 		BodyHash:         xbase64("LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q="),
-		Domain:           xdomain("mox.example"),
+		Domain:           xdomain("beacon.example"),
 		SignedHeaders:    []string{"from"},
 		Selector:         xdomain("test"),
-		Identity:         &Identity{&multiatom, xdomain("mox.example")},
+		Identity:         &Identity{&multiatom, xdomain("beacon.example")},
 		Canonicalization: "simple/simple",
 		Length:           -1,
 		SignTime:         -1,
 		ExpireTime:       -1,
 	}
-	test("dkim-signature: v = 1 ; a=ed25519-sha256; s=test; d=mox.example; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q= ; i=a.b.c@mox.example\r\n", true, sig3, nil)
+	test("dkim-signature: v = 1 ; a=ed25519-sha256; s=test; d=beacon.example; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q= ; i=a.b.c@beacon.example\r\n", true, sig3, nil)
 
 	quotedlp := smtp.Localpart(`test "\test`)
 	sig4 := &Sig{
@@ -126,30 +126,30 @@ func TestSig(t *testing.T) {
 		AlgorithmHash:    "sha256",
 		Signature:        xbase64("dGVzdAo="),
 		BodyHash:         xbase64("LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q="),
-		Domain:           xdomain("mox.example"),
+		Domain:           xdomain("beacon.example"),
 		SignedHeaders:    []string{"from"},
 		Selector:         xdomain("test"),
-		Identity:         &Identity{&quotedlp, xdomain("mox.example")},
+		Identity:         &Identity{&quotedlp, xdomain("beacon.example")},
 		Canonicalization: "simple/simple",
 		Length:           -1,
 		SignTime:         -1,
 		ExpireTime:       -1,
 	}
-	test("dkim-signature: v = 1 ; a=ed25519-sha256; s=test; d=mox.example; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q= ; i=\"test \\\"\\\\test\"@mox.example\r\n", true, sig4, nil)
+	test("dkim-signature: v = 1 ; a=ed25519-sha256; s=test; d=beacon.example; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q= ; i=\"test \\\"\\\\test\"@beacon.example\r\n", true, sig4, nil)
 
 	test("", true, nil, errSigMissingCRLF)
 	test("other: ...\r\n", true, nil, errSigHeader)
 	test("dkim-signature: v=2\r\n", true, nil, errSigUnknownVersion)
 	test("dkim-signature: v=1\r\n", true, nil, errSigMissingTag)
 	test("dkim-signature: v=1;v=1\r\n", true, nil, errSigDuplicateTag)
-	test("dkim-signature: v=1; d=mox.example; i=@unrelated.example; s=test; a=ed25519-sha256; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q=\r\n", true, nil, errSigIdentityDomain)
-	test("dkim-signature: v=1; t=10; x=9; d=mox.example; s=test; a=ed25519-sha256; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q=\r\n", true, nil, errSigExpired)
+	test("dkim-signature: v=1; d=beacon.example; i=@unrelated.example; s=test; a=ed25519-sha256; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q=\r\n", true, nil, errSigIdentityDomain)
+	test("dkim-signature: v=1; t=10; x=9; d=beacon.example; s=test; a=ed25519-sha256; h=from; b=dGVzdAo=; bh=LjkN2rUhrS3zKXfH2vNgUzz5ERRJkgP9CURXBX0JP0Q=\r\n", true, nil, errSigExpired)
 	test("dkim-signature: v=1; d=møx.example\r\n", true, nil, parseErr("")) // Unicode domain not allowed.
 	test("dkim-signature: v=1; s=tést\r\n", true, nil, parseErr(""))        // Unicode selector not allowed.
 	test("dkim-signature: v=1; ;\r\n", true, nil, parseErr(""))             // Empty tag not allowed.
 	test("dkim-signature: v=1; \r\n", true, nil, parseErr(""))              // Cannot have whitespace after last colon.
-	test("dkim-signature: v=1; d=mox.example; s=test; a=ed25519-sha256; h=from; b=dGVzdAo=; bh=dGVzdAo=\r\n", true, nil, errSigBodyHash)
-	test("dkim-signature: v=1; d=mox.example; s=test; a=rsa-sha1; h=from; b=dGVzdAo=; bh=dGVzdAo=\r\n", true, nil, errSigBodyHash)
+	test("dkim-signature: v=1; d=beacon.example; s=test; a=ed25519-sha256; h=from; b=dGVzdAo=; bh=dGVzdAo=\r\n", true, nil, errSigBodyHash)
+	test("dkim-signature: v=1; d=beacon.example; s=test; a=rsa-sha1; h=from; b=dGVzdAo=; bh=dGVzdAo=\r\n", true, nil, errSigBodyHash)
 }
 
 func TestCopiedHeadersSig(t *testing.T) {

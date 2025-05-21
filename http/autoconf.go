@@ -12,21 +12,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"rsc.io/qr"
 
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/smtp"
 )
 
 var (
 	metricAutoconf = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_autoconf_request_total",
+			Name: "beacon_autoconf_request_total",
 			Help: "Number of autoconf requests.",
 		},
 		[]string{"domain"},
 	)
 	metricAutodiscover = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_autodiscover_request_total",
+			Name: "beacon_autodiscover_request_total",
 			Help: "Number of autodiscover requests.",
 		},
 		[]string{"domain"},
@@ -71,13 +71,13 @@ func autoconfHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	socketType := func(tlsMode mox.TLSMode) (string, error) {
+	socketType := func(tlsMode beacon.TLSMode) (string, error) {
 		switch tlsMode {
-		case mox.TLSModeImmediate:
+		case beacon.TLSModeImmediate:
 			return "SSL", nil
-		case mox.TLSModeSTARTTLS:
+		case beacon.TLSModeSTARTTLS:
 			return "STARTTLS", nil
-		case mox.TLSModeNone:
+		case beacon.TLSModeNone:
 			return "plain", nil
 		default:
 			return "", fmt.Errorf("unknown tls mode %v", tlsMode)
@@ -85,7 +85,7 @@ func autoconfHandle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var imapTLS, submissionTLS string
-	config, err := mox.ClientConfigDomain(addr.Domain)
+	config, err := beacon.ClientConfigDomain(addr.Domain)
 	if err == nil {
 		imapTLS, err = socketType(config.IMAP.TLSMode)
 	}
@@ -171,13 +171,13 @@ func autodiscoverHandle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// tlsmode returns the "ssl" and "encryption" fields.
-	tlsmode := func(tlsMode mox.TLSMode) (string, string, error) {
+	tlsmode := func(tlsMode beacon.TLSMode) (string, string, error) {
 		switch tlsMode {
-		case mox.TLSModeImmediate:
+		case beacon.TLSModeImmediate:
 			return "on", "TLS", nil
-		case mox.TLSModeSTARTTLS:
+		case beacon.TLSModeSTARTTLS:
 			return "on", "", nil
-		case mox.TLSModeNone:
+		case beacon.TLSModeNone:
 			return "off", "", nil
 		default:
 			return "", "", fmt.Errorf("unknown tls mode %v", tlsMode)
@@ -186,7 +186,7 @@ func autodiscoverHandle(w http.ResponseWriter, r *http.Request) {
 
 	var imapSSL, imapEncryption string
 	var submissionSSL, submissionEncryption string
-	config, err := mox.ClientConfigDomain(addr.Domain)
+	config, err := beacon.ClientConfigDomain(addr.Domain)
 	if err == nil {
 		imapSSL, imapEncryption, err = tlsmode(config.IMAP.TLSMode)
 	}

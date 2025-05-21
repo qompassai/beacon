@@ -17,12 +17,12 @@ import (
 	mathrand "math/rand"
 	"time"
 
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/spf"
-	"github.com/mjl-/mox/stub"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/spf"
+	"github.com/qompassai/beacon/stub"
 
 	"golang.org/x/exp/slog"
 )

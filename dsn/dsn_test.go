@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/smtp"
 )
 
 var pkglog = mlog.New("dsn", nil)
@@ -79,13 +79,13 @@ func TestDSN(t *testing.T) {
 	m := Message{
 		SMTPUTF8: false,
 
-		From:      smtp.Path{Localpart: "postmaster", IPDomain: xparseIPDomain("mox.example")},
+		From:      smtp.Path{Localpart: "postmaster", IPDomain: xparseIPDomain("beacon.example")},
 		To:        smtp.Path{Localpart: "mjl", IPDomain: xparseIPDomain("remote.example")},
 		Subject:   "dsn",
 		MessageID: "test@localhost",
 		TextBody:  "delivery failure\n",
 
-		ReportingMTA:    "mox.example",
+		ReportingMTA:    "beacon.example",
 		ReceivedFromMTA: smtp.Ehlo{Name: xparseIPDomain("relay.example"), ConnIP: net.ParseIP("10.10.10.10")},
 		ArrivalDate:     now,
 
@@ -138,7 +138,7 @@ func TestDSN(t *testing.T) {
 		MessageID: "test@localhost",
 		TextBody:  "delivery failure¿\n",
 
-		ReportingMTA:    "mox.example",
+		ReportingMTA:    "beacon.example",
 		ReceivedFromMTA: smtp.Ehlo{Name: xparseIPDomain("reläy.example"), ConnIP: net.ParseIP("10.10.10.10")},
 		ArrivalDate:     now,
 

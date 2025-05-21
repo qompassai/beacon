@@ -15,11 +15,11 @@ import (
 	"github.com/mjl-/bstore"
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/store"
 )
 
 func tneedErrorCode(t *testing.T, code string, fn func()) {
@@ -50,11 +50,11 @@ func tneedError(t *testing.T, fn func()) {
 // Test API calls.
 // todo: test that the actions make the changes they claim to make. we currently just call the functions and have only limited checks that state changed.
 func TestAPI(t *testing.T) {
-	mox.LimitersInit()
+	beacon.LimitersInit()
 	os.RemoveAll("../testdata/webmail/data")
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/webmail/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/webmail/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	defer store.Switchboard()()
 
 	log := mlog.New("webmail", nil)
@@ -87,11 +87,11 @@ func TestAPI(t *testing.T) {
 	api := Webmail{maxMessageSize: 1024 * 1024, cookiePath: "/webmail/"}
 
 	// Test login, and rate limiter.
-	loginReqInfo := requestInfo{"mjl@mox.example", "mjl", "", httptest.NewRecorder(), &http.Request{RemoteAddr: "1.1.1.1:1234"}}
+	loginReqInfo := requestInfo{"mjl@beacon.example", "mjl", "", httptest.NewRecorder(), &http.Request{RemoteAddr: "1.1.1.1:1234"}}
 	loginctx := context.WithValue(ctxbg, requestInfoCtxKey, loginReqInfo)
 
 	// Missing login token.
-	tneedErrorCode(t, "user:error", func() { api.Login(loginctx, "", "mjl@mox.example", "test1234") })
+	tneedErrorCode(t, "user:error", func() { api.Login(loginctx, "", "mjl@beacon.example", "test1234") })
 
 	// Login with loginToken.
 	loginCookie := &http.Cookie{Name: "webmaillogin"}
@@ -118,9 +118,9 @@ func TestAPI(t *testing.T) {
 
 		api.Login(loginctx, loginCookie.Value, username, password)
 	}
-	testLogin("mjl@mox.example", "test1234")
-	testLogin("mjl@mox.example", "bad", "user:loginFailed")
-	testLogin("nouser@mox.example", "test1234", "user:loginFailed")
+	testLogin("mjl@beacon.example", "test1234")
+	testLogin("mjl@beacon.example", "bad", "user:loginFailed")
+	testLogin("nouser@beacon.example", "test1234", "user:loginFailed")
 	testLogin("nouser@bad.example", "test1234", "user:loginFailed")
 	for i := 3; i < 10; i++ {
 		testLogin("bad@bad.example", "test1234", "user:loginFailed")
@@ -132,7 +132,7 @@ func TestAPI(t *testing.T) {
 	testLogin("bad@bad.example", "test1234", "user:error")
 
 	// Context with different IP, for clear rate limit history.
-	reqInfo := requestInfo{"mjl@mox.example", "mjl", "", nil, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
+	reqInfo := requestInfo{"mjl@beacon.example", "mjl", "", nil, &http.Request{RemoteAddr: "127.0.0.1:1234"}}
 	ctx := context.WithValue(ctxbg, requestInfoCtxKey, reqInfo)
 
 	// FlagsAdd
@@ -271,21 +271,21 @@ func TestAPI(t *testing.T) {
 	// MessageSubmit
 	queue.Localserve = true // Deliver directly to us instead attempting actual delivery.
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:      "mjl@mox.example",
-		To:        []string{"mjl+to@mox.example", "mjl to2 <mjl+to2@mox.example>"},
-		Cc:        []string{"mjl+cc@mox.example", "mjl cc2 <mjl+cc2@mox.example>"},
-		Bcc:       []string{"mjl+bcc@mox.example", "mjl bcc2 <mjl+bcc2@mox.example>"},
+		From:      "mjl@beacon.example",
+		To:        []string{"mjl+to@beacon.example", "mjl to2 <mjl+to2@beacon.example>"},
+		Cc:        []string{"mjl+cc@beacon.example", "mjl cc2 <mjl+cc2@beacon.example>"},
+		Bcc:       []string{"mjl+bcc@beacon.example", "mjl bcc2 <mjl+bcc2@beacon.example>"},
 		Subject:   "test email",
-		TextBody:  "this is the content\n\ncheers,\nmox",
-		ReplyTo:   "mjl replyto <mjl+replyto@mox.example>",
-		UserAgent: "moxwebmail/dev",
+		TextBody:  "this is the content\n\ncheers,\nbeacon",
+		ReplyTo:   "mjl replyto <mjl+replyto@beacon.example>",
+		UserAgent: "beaconwebmail/dev",
 	})
 	// todo: check delivery of 6 messages to inbox, 1 to sent
 
 	// Reply with attachments.
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:     "mjl@mox.example",
-		To:       []string{"mjl+to@mox.example"},
+		From:     "mjl@beacon.example",
+		To:       []string{"mjl+to@beacon.example"},
 		Subject:  "Re: reply with attachments",
 		TextBody: "sending you these fake png files",
 		Attachments: []File{
@@ -304,8 +304,8 @@ func TestAPI(t *testing.T) {
 
 	// Forward with attachments.
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:     "mjl@mox.example",
-		To:       []string{"mjl+to@mox.example"},
+		From:     "mjl@beacon.example",
+		To:       []string{"mjl+to@beacon.example"},
 		Subject:  "Fwd: the original subject",
 		TextBody: "look what i got",
 		Attachments: []File{
@@ -325,22 +325,22 @@ func TestAPI(t *testing.T) {
 
 	// Send from utf8 localpart.
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:     "møx@mox.example",
-		To:       []string{"mjl+to@mox.example"},
+		From:     "møx@beacon.example",
+		To:       []string{"mjl+to@beacon.example"},
 		TextBody: "test",
 	})
 
 	// Send to utf8 localpart.
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:     "mjl@mox.example",
-		To:       []string{"møx@mox.example"},
+		From:     "mjl@beacon.example",
+		To:       []string{"møx@beacon.example"},
 		TextBody: "test",
 	})
 
 	// Send to utf-8 text.
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:     "mjl@mox.example",
-		To:       []string{"mjl+to@mox.example"},
+		From:     "mjl@beacon.example",
+		To:       []string{"mjl+to@beacon.example"},
 		Subject:  "hi ☺",
 		TextBody: fmt.Sprintf("%80s", "tést"),
 	})
@@ -348,8 +348,8 @@ func TestAPI(t *testing.T) {
 	// Send without special-use Sent mailbox.
 	api.MailboxSetSpecialUse(ctx, store.Mailbox{ID: sent.ID, SpecialUse: store.SpecialUse{}})
 	api.MessageSubmit(ctx, SubmitMessage{
-		From:     "mjl@mox.example",
-		To:       []string{"mjl+to@mox.example"},
+		From:     "mjl@beacon.example",
+		To:       []string{"mjl+to@beacon.example"},
 		Subject:  "hi ☺",
 		TextBody: fmt.Sprintf("%80s", "tést"),
 	})
@@ -357,8 +357,8 @@ func TestAPI(t *testing.T) {
 	// Message with From-address of another account.
 	tneedError(t, func() {
 		api.MessageSubmit(ctx, SubmitMessage{
-			From:     "other@mox.example",
-			To:       []string{"mjl+to@mox.example"},
+			From:     "other@beacon.example",
+			To:       []string{"mjl+to@beacon.example"},
 			TextBody: "test",
 		})
 	})
@@ -366,8 +366,8 @@ func TestAPI(t *testing.T) {
 	// Message with unknown address.
 	tneedError(t, func() {
 		api.MessageSubmit(ctx, SubmitMessage{
-			From:     "doesnotexist@mox.example",
-			To:       []string{"mjl+to@mox.example"},
+			From:     "doesnotexist@beacon.example",
+			To:       []string{"mjl+to@beacon.example"},
 			TextBody: "test",
 		})
 	})
@@ -375,7 +375,7 @@ func TestAPI(t *testing.T) {
 	// Message without recipient.
 	tneedError(t, func() {
 		api.MessageSubmit(ctx, SubmitMessage{
-			From:     "mjl@mox.example",
+			From:     "mjl@beacon.example",
 			TextBody: "test",
 		})
 	})
@@ -383,8 +383,8 @@ func TestAPI(t *testing.T) {
 	api.maxMessageSize = 1
 	tneedError(t, func() {
 		api.MessageSubmit(ctx, SubmitMessage{
-			From:     "mjl@mox.example",
-			To:       []string{"mjl+to@mox.example"},
+			From:     "mjl@beacon.example",
+			To:       []string{"mjl+to@beacon.example"},
 			Subject:  "too large",
 			TextBody: "so many bytes",
 		})
@@ -396,7 +396,7 @@ func TestAPI(t *testing.T) {
 		accConf, _ := acc.Conf()
 		for i := 0; i <= accConf.MaxFirstTimeRecipientsPerDay; i++ {
 			api.MessageSubmit(ctx, SubmitMessage{
-				From:     fmt.Sprintf("user@mox%d.example", i),
+				From:     fmt.Sprintf("user@beacon%d.example", i),
 				TextBody: "test",
 			})
 		}
@@ -407,7 +407,7 @@ func TestAPI(t *testing.T) {
 		accConf, _ := acc.Conf()
 		for i := 0; i <= accConf.MaxOutgoingMessagesPerDay; i++ {
 			api.MessageSubmit(ctx, SubmitMessage{
-				From:     fmt.Sprintf("user@mox%d.example", i),
+				From:     fmt.Sprintf("user@beacon%d.example", i),
 				TextBody: "test",
 			})
 		}
@@ -417,17 +417,17 @@ func TestAPI(t *testing.T) {
 	tcompare(t, len(l), 0)
 	tcompare(t, full, true)
 	l, full = api.CompleteRecipient(ctx, "cc2")
-	tcompare(t, l, []string{"mjl cc2 <mjl+cc2@mox.example>"})
+	tcompare(t, l, []string{"mjl cc2 <mjl+cc2@beacon.example>"})
 	tcompare(t, full, true)
 
 	// RecipientSecurity
 	resolver := dns.MockResolver{}
-	rs, err := recipientSecurity(ctx, resolver, "mjl@a.mox.example")
+	rs, err := recipientSecurity(ctx, resolver, "mjl@a.beacon.example")
 	tcompare(t, err, nil)
 	tcompare(t, rs, RecipientSecurity{SecurityResultUnknown, SecurityResultNo, SecurityResultNo, SecurityResultNo, SecurityResultUnknown})
-	err = acc.DB.Insert(ctx, &store.RecipientDomainTLS{Domain: "a.mox.example", STARTTLS: true, RequireTLS: false})
+	err = acc.DB.Insert(ctx, &store.RecipientDomainTLS{Domain: "a.beacon.example", STARTTLS: true, RequireTLS: false})
 	tcheck(t, err, "insert recipient domain tls info")
-	rs, err = recipientSecurity(ctx, resolver, "mjl@a.mox.example")
+	rs, err = recipientSecurity(ctx, resolver, "mjl@a.beacon.example")
 	tcompare(t, err, nil)
 	tcompare(t, rs, RecipientSecurity{SecurityResultYes, SecurityResultNo, SecurityResultNo, SecurityResultNo, SecurityResultNo})
 }

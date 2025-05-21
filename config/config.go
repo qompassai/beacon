@@ -10,11 +10,11 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/mjl-/mox/autotls"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/junk"
-	"github.com/mjl-/mox/mtasts"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/autotls"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/junk"
+	"github.com/qompassai/beacon/mtasts"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // todo: better default values, so less has to be specified in the config file.
@@ -31,17 +31,17 @@ func Port(port, fallback int) int {
 	return port
 }
 
-// Static is a parsed form of the mox.conf configuration file, before converting it
-// into a mox.Config after additional processing.
+// Static is a parsed form of the beacon.conf configuration file, before converting it
+// into a beacon.Config after additional processing.
 type Static struct {
-	DataDir          string            `sconf-doc:"NOTE: This config file is in 'sconf' format. Indent with tabs. Comments must be on their own line, they don't end a line. Do not escape or quote strings. Details: https://pkg.go.dev/github.com/mjl-/sconf.\n\n\nDirectory where all data is stored, e.g. queue, accounts and messages, ACME TLS certs/keys. If this is a relative path, it is relative to the directory of mox.conf."`
+	DataDir          string            `sconf-doc:"NOTE: This config file is in 'sconf' format. Indent with tabs. Comments must be on their own line, they don't end a line. Do not escape or quote strings. Details: https://pkg.go.dev/github.com/mjl-/sconf.\n\n\nDirectory where all data is stored, e.g. queue, accounts and messages, ACME TLS certs/keys. If this is a relative path, it is relative to the directory of beacon.conf."`
 	LogLevel         string            `sconf-doc:"Default log level, one of: error, info, debug, trace, traceauth, tracedata. Trace logs SMTP and IMAP protocol transcripts, with traceauth also messages with passwords, and tracedata on top of that also the full data exchanges (full messages), which can be a large amount of data."`
 	PackageLogLevels map[string]string `sconf:"optional" sconf-doc:"Overrides of log level per package (e.g. queue, smtpclient, smtpserver, imapserver, spf, dkim, dmarc, dmarcdb, autotls, junk, mtasts, tlsrpt)."`
-	User             string            `sconf:"optional" sconf-doc:"User to switch to after binding to all sockets as root. Default: mox. If the value is not a known user, it is parsed as integer and used as uid and gid."`
-	NoFixPermissions bool              `sconf:"optional" sconf-doc:"If true, do not automatically fix file permissions when starting up. By default, mox will ensure reasonable owner/permissions on the working, data and config directories (and files), and mox binary (if present)."`
+	User             string            `sconf:"optional" sconf-doc:"User to switch to after binding to all sockets as root. Default: beacon. If the value is not a known user, it is parsed as integer and used as uid and gid."`
+	NoFixPermissions bool              `sconf:"optional" sconf-doc:"If true, do not automatically fix file permissions when starting up. By default, beacon will ensure reasonable owner/permissions on the working, data and config directories (and files), and beacon binary (if present)."`
 	Hostname         string            `sconf-doc:"Full hostname of system, e.g. mail.<domain>"`
 	HostnameDomain   dns.Domain        `sconf:"-" json:"-"` // Parsed form of hostname.
-	CheckUpdates     bool              `sconf:"optional" sconf-doc:"If enabled, a single DNS TXT lookup of _updates.xmox.nl is done every 24h to check for a new release. Each time a new release is found, a changelog is fetched from https://updates.xmox.nl/changelog and delivered to the postmaster mailbox."`
+	CheckUpdates     bool              `sconf:"optional" sconf-doc:"If enabled, a single DNS TXT lookup of _updates.xbeacon.nl is done every 24h to check for a new release. Each time a new release is found, a changelog is fetched from https://updates.xbeacon.nl/changelog and delivered to the postmaster mailbox."`
 	Pedantic         bool              `sconf:"optional" sconf-doc:"In pedantic mode protocol violations (that happen in the wild) for SMTP/IMAP/etc result in errors instead of accepting such behaviour."`
 	TLS              struct {
 		CA *struct {
@@ -129,11 +129,11 @@ type ACME struct {
 
 type ExternalAccountBinding struct {
 	KeyID   string `sconf-doc:"Key identifier, from ACME provider."`
-	KeyFile string `sconf-doc:"File containing the base64url-encoded key used to sign account requests with external account binding. The ACME provider will verify the account request is correctly signed by the key. File is evaluated relative to the directory of mox.conf."`
+	KeyFile string `sconf-doc:"File containing the base64url-encoded key used to sign account requests with external account binding. The ACME provider will verify the account request is correctly signed by the key. File is evaluated relative to the directory of beacon.conf."`
 }
 
 type Listener struct {
-	IPs            []string   `sconf-doc:"Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but it is better to explicitly specify the IPs you want to use for email, as mox will make sure outgoing connections will only be made from one of those IPs."`
+	IPs            []string   `sconf-doc:"Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but it is better to explicitly specify the IPs you want to use for email, as beacon will make sure outgoing connections will only be made from one of those IPs."`
 	NATIPs         []string   `sconf:"optional" sconf-doc:"If set, the mail server is configured behind a NAT and field IPs are internal instead of the public IPs, while NATIPs lists the public IPs. Used during IP-related DNS self-checks, such as for iprev, mx, spf, autoconfig, autodiscover, and for autotls."`
 	IPsNATed       bool       `sconf:"optional" sconf-doc:"Deprecated, use NATIPs instead. If set, IPs are not the public IPs, but are NATed. Skips IP-related DNS self-checks."`
 	Hostname       string     `sconf:"optional" sconf-doc:"If empty, the config global Hostname is used."`
@@ -176,7 +176,7 @@ type Listener struct {
 	} `sconf:"optional" sconf-doc:"IMAP over TLS for reading email, by email applications. Requires a TLS config."`
 	AccountHTTP  WebService `sconf:"optional" sconf-doc:"Account web interface, for email users wanting to change their accounts, e.g. set new password, set new delivery rulesets. Default path is /."`
 	AccountHTTPS WebService `sconf:"optional" sconf-doc:"Account web interface listener like AccountHTTP, but for HTTPS. Requires a TLS config."`
-	AdminHTTP    WebService `sconf:"optional" sconf-doc:"Admin web interface, for managing domains, accounts, etc. Default path is /admin/. Preferably only enable on non-public IPs. Hint: use 'ssh -L 8080:localhost:80 you@yourmachine' and open http://localhost:8080/admin/, or set up a tunnel (e.g. WireGuard) and add its IP to the mox 'internal' listener."`
+	AdminHTTP    WebService `sconf:"optional" sconf-doc:"Admin web interface, for managing domains, accounts, etc. Default path is /admin/. Preferably only enable on non-public IPs. Hint: use 'ssh -L 8080:localhost:80 you@yourmachine' and open http://localhost:8080/admin/, or set up a tunnel (e.g. WireGuard) and add its IP to the beacon 'internal' listener."`
 	AdminHTTPS   WebService `sconf:"optional" sconf-doc:"Admin web interface listener like AdminHTTP, but for HTTPS. Requires a TLS config."`
 	WebmailHTTP  WebService `sconf:"optional" sconf-doc:"Webmail client, for reading email. Default path is /webmail/."`
 	WebmailHTTPS WebService `sconf:"optional" sconf-doc:"Webmail client, like WebmailHTTP, but for HTTPS. Requires a TLS config."`
@@ -187,7 +187,7 @@ type Listener struct {
 	PprofHTTP struct {
 		Enabled bool
 		Port    int `sconf:"optional" sconf-doc:"Default 8011."`
-	} `sconf:"optional" sconf-doc:"Serve /debug/pprof/ for profiling a running mox instance. Do not enable this on a public IP!"`
+	} `sconf:"optional" sconf-doc:"Serve /debug/pprof/ for profiling a running beacon instance. Do not enable this on a public IP!"`
 	AutoconfigHTTPS struct {
 		Enabled bool
 		Port    int  `sconf:"optional" sconf-doc:"TLS port, 443 by default. You should only override this if you cannot listen on port 443 directly. Autoconfig requests will be made to port 443, so you'll have to add an external mechanism to get the connection here, e.g. by configuring port forwarding."`
@@ -286,7 +286,7 @@ type DMARC struct {
 }
 
 type MTASTS struct {
-	PolicyID string        `sconf-doc:"Policies are versioned. The version must be specified in the DNS record. If you change a policy, first change it in mox, then update the DNS record."`
+	PolicyID string        `sconf-doc:"Policies are versioned. The version must be specified in the DNS record. If you change a policy, first change it in beacon, then update the DNS record."`
 	Mode     mtasts.Mode   `sconf-doc:"testing, enforce or none. If set to enforce, a remote SMTP server will not deliver email to us if it cannot make a TLS connection."`
 	MaxAge   time.Duration `sconf-doc:"How long a remote mail server is allowed to cache a policy. Typically 1 or several weeks."`
 	MX       []string      `sconf:"optional" sconf-doc:"List of server names allowed for SMTP. If empty, the configured hostname is set. Host names can contain a wildcard (*) as a leading label (matching a single label, e.g. *.example matches host.example, not sub.host.example)."`
@@ -434,7 +434,7 @@ type KeyCert struct {
 
 type TLS struct {
 	ACME                string    `sconf:"optional" sconf-doc:"Name of provider from top-level configuration to use for ACME, e.g. letsencrypt."`
-	KeyCerts            []KeyCert `sconf:"optional" sconf-doc:"Keys and certificates to use for this listener. The files are opened by the privileged root process and passed to the unprivileged mox process, so no special permissions are required on the files. If the private key will not be replaced when refreshing certificates, also consider adding the private key to HostPrivateKeyFiles and configuring DANE TLSA DNS records."`
+	KeyCerts            []KeyCert `sconf:"optional" sconf-doc:"Keys and certificates to use for this listener. The files are opened by the privileged root process and passed to the unprivileged beacon process, so no special permissions are required on the files. If the private key will not be replaced when refreshing certificates, also consider adding the private key to HostPrivateKeyFiles and configuring DANE TLSA DNS records."`
 	MinVersion          string    `sconf:"optional" sconf-doc:"Minimum TLS version. Default: TLSv1.2."`
 	HostPrivateKeyFiles []string  `sconf:"optional" sconf-doc:"Private keys used for ACME certificates. Specified explicitly so DANE TLSA DNS records can be generated, even before the certificates are requested. DANE is a mechanism to authenticate remote TLS certificates based on a public key or certificate specified in DNS, protected with DNSSEC. DANE is opportunistic and attempted when delivering SMTP with STARTTLS. The private key files must be in PEM format. PKCS8 is recommended, but PKCS1 and EC private keys are recognized as well. Only RSA 2048 bit and ECDSA P-256 keys are currently used. The first of each is used when requesting new certificates through ACME."`
 
@@ -492,7 +492,7 @@ func (wh WebHandler) Equal(o WebHandler) bool {
 
 type WebStatic struct {
 	StripPrefix      string            `sconf:"optional" sconf-doc:"Path to strip from the request URL before evaluating to a local path. If the requested URL path does not start with this prefix and ContinueNotFound it is considered non-matching and next WebHandlers are tried. If ContinueNotFound is not set, a file not found (404) is returned in that case."`
-	Root             string            `sconf-doc:"Directory to serve files from for this handler. Keep in mind that relative paths are relative to the working directory of mox."`
+	Root             string            `sconf-doc:"Directory to serve files from for this handler. Keep in mind that relative paths are relative to the working directory of beacon."`
 	ListFiles        bool              `sconf:"optional" sconf-doc:"If set, and a directory is requested, and no index.html is present that can be served, a file listing is returned. Results in 403 if ListFiles is not set. If a directory is requested and the URL does not end with a slash, the response is a redirect to the path with trailing slash."`
 	ContinueNotFound bool              `sconf:"optional" sconf-doc:"If a requested URL does not exist, don't return a file not found (404) response, but consider this handler non-matching and continue attempts to serve with later WebHandlers, which may be a reverse proxy generating dynamic content, possibly even writing a static file for a next request to serve statically. If ContinueNotFound is set, HTTP requests other than GET and HEAD do not match. This mechanism can be used to implement the equivalent of 'try_files' in other webservers."`
 	ResponseHeaders  map[string]string `sconf:"optional" sconf-doc:"Headers to add to the response. Useful for cache-control, content-type, etc. By default, Content-Type headers are automatically added for recognized file types, unless added explicitly through this setting. For directory listings, a content-type header is skipped."`

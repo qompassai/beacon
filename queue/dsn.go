@@ -12,19 +12,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dsn"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dsn"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
 var (
 	metricDMARCReportFailure = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_queue_dmarcreport_failure_total",
+			Name: "beacon_queue_dmarcreport_failure_total",
 			Help: "Permanent failures to deliver a DMARC report.",
 		},
 	)
@@ -122,14 +122,14 @@ func deliverDSN(ctx context.Context, log mlog.Log, m Msg, remoteMTA dsn.NameIP, 
 
 	dsnMsg := &dsn.Message{
 		SMTPUTF8:   m.SMTPUTF8,
-		From:       smtp.Path{Localpart: "postmaster", IPDomain: dns.IPDomain{Domain: mox.Conf.Static.HostnameDomain}},
+		From:       smtp.Path{Localpart: "postmaster", IPDomain: dns.IPDomain{Domain: beacon.Conf.Static.HostnameDomain}},
 		To:         m.Sender(),
 		Subject:    subject,
-		MessageID:  mox.MessageIDGen(false),
+		MessageID:  beacon.MessageIDGen(false),
 		References: m.MessageID,
 		TextBody:   textBody,
 
-		ReportingMTA: mox.Conf.Static.HostnameDomain.ASCII,
+		ReportingMTA: beacon.Conf.Static.HostnameDomain.ASCII,
 		ArrivalDate:  m.Queued,
 
 		Recipients: []dsn.Recipient{
@@ -158,16 +158,16 @@ func deliverDSN(ctx context.Context, log mlog.Log, m Msg, remoteMTA dsn.NameIP, 
 	senderAccount := m.SenderAccount
 	if m.IsDMARCReport {
 		// senderAccount should already by postmaster, but doesn't hurt to ensure it.
-		senderAccount = mox.Conf.Static.Postmaster.Account
+		senderAccount = beacon.Conf.Static.Postmaster.Account
 	}
 	acc, err := store.OpenAccount(log, senderAccount)
 	if err != nil {
-		acc, err = store.OpenAccount(log, mox.Conf.Static.Postmaster.Account)
+		acc, err = store.OpenAccount(log, beacon.Conf.Static.Postmaster.Account)
 		if err != nil {
 			qlog("looking up postmaster account after sender account was not found", err)
 			return
 		}
-		mailbox = mox.Conf.Static.Postmaster.Mailbox
+		mailbox = beacon.Conf.Static.Postmaster.Mailbox
 	}
 	defer func() {
 		err := acc.Close()
@@ -197,7 +197,7 @@ func deliverDSN(ctx context.Context, log mlog.Log, m Msg, remoteMTA dsn.NameIP, 
 	// postmaster mailbox. We mark it as seen so it doesn't waste postmaster attention,
 	// but we deliver them so they can be checked in case of problems.
 	if m.IsDMARCReport {
-		mailbox = fmt.Sprintf("%s/dmarc", mox.Conf.Static.Postmaster.Mailbox)
+		mailbox = fmt.Sprintf("%s/dmarc", beacon.Conf.Static.Postmaster.Mailbox)
 		msg.Seen = true
 		metricDMARCReportFailure.Inc()
 		log.Info("delivering dsn for failure to deliver outgoing dmarc report")

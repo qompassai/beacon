@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestFetch(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Enable("imap4rev2")
 	received, err := time.Parse(time.RFC3339, "2022-11-16T10:01:00+01:00")
 	tc.check(err, "parse time")
@@ -249,10 +249,10 @@ func TestFetch(t *testing.T) {
 					BodyFields:   imapclient.BodyFields{Octets: 228},
 					Envelope: imapclient.Envelope{
 						Subject: "(subject in US-ASCII)",
-						From:    []imapclient.Address{{Name: "", Adl: "", Mailbox: "info", Host: "mox.example"}},
-						Sender:  []imapclient.Address{{Name: "", Adl: "", Mailbox: "info", Host: "mox.example"}},
-						ReplyTo: []imapclient.Address{{Name: "", Adl: "", Mailbox: "info", Host: "mox.example"}},
-						To:      []imapclient.Address{{Name: "mox", Adl: "", Mailbox: "info", Host: "mox.example"}},
+						From:    []imapclient.Address{{Name: "", Adl: "", Mailbox: "info", Host: "beacon.example"}},
+						Sender:  []imapclient.Address{{Name: "", Adl: "", Mailbox: "info", Host: "beacon.example"}},
+						ReplyTo: []imapclient.Address{{Name: "", Adl: "", Mailbox: "info", Host: "beacon.example"}},
+						To:      []imapclient.Address{{Name: "beacon", Adl: "", Mailbox: "info", Host: "beacon.example"}},
 					},
 					Bodystructure: imapclient.BodyTypeText{
 						MediaType: "TEXT", MediaSubtype: "PLAIN", BodyFields: imapclient.BodyFields{Params: [][2]string{{"CHARSET", "ISO-8859-1"}}, CTE: "QUOTED-PRINTABLE", Octets: 51}, Lines: 1},
@@ -347,8 +347,8 @@ Content-Transfer-Encoding: base64
 	tc.transactf("ok", "fetch 2 body.peek[2.mime]")
 	tc.xuntagged(imapclient.UntaggedFetch{Seq: 2, Attrs: []imapclient.FetchAttr{uid2, imapclient.FetchBody{RespAttr: "BODY[2.MIME]", Section: "2.MIME", Body: part2mime}}})
 
-	part5 := tocrlf(`From: info@mox.example
-To: mox <info@mox.example>
+	part5 := tocrlf(`From: info@beacon.example
+To: beacon <info@beacon.example>
 Subject: (subject in US-ASCII)
 Content-Type: Text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: Quoted-printable
@@ -358,8 +358,8 @@ Content-Transfer-Encoding: Quoted-printable
 	tc.transactf("ok", "fetch 2 body.peek[5]")
 	tc.xuntagged(imapclient.UntaggedFetch{Seq: 2, Attrs: []imapclient.FetchAttr{uid2, imapclient.FetchBody{RespAttr: "BODY[5]", Section: "5", Body: part5}}})
 
-	part5header := tocrlf(`From: info@mox.example
-To: mox <info@mox.example>
+	part5header := tocrlf(`From: info@beacon.example
+To: beacon <info@beacon.example>
 Subject: (subject in US-ASCII)
 Content-Type: Text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: Quoted-printable

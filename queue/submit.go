@@ -14,15 +14,15 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dsn"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dsn"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/store"
 )
 
 // todo: reuse connection? do fewer concurrently (other than with direct delivery).
@@ -72,7 +72,7 @@ func deliverSubmit(qlog mlog.Log, resolver dns.Resolver, dialer smtpclient.Diale
 
 	// todo: for submission, understand SRV records, and even DANE.
 
-	ctx := mox.Shutdown
+	ctx := beacon.Shutdown
 
 	// If submit was done with REQUIRETLS extension for SMTP, we must verify TLS
 	// certificates. If our submission connection is not configured that way, abort.
@@ -94,7 +94,7 @@ func deliverSubmit(qlog mlog.Log, resolver dns.Resolver, dialer smtpclient.Diale
 		if m.DialedIPs == nil {
 			m.DialedIPs = map[string][]net.IP{}
 		}
-		conn, _, err = smtpclient.Dial(dialctx, qlog.Logger, dialer, dns.IPDomain{Domain: transport.DNSHost}, ips, port, m.DialedIPs, mox.Conf.Static.SpecifiedSMTPListenIPs)
+		conn, _, err = smtpclient.Dial(dialctx, qlog.Logger, dialer, dns.IPDomain{Domain: transport.DNSHost}, ips, port, m.DialedIPs, beacon.Conf.Static.SpecifiedSMTPListenIPs)
 	}
 	addr := net.JoinHostPort(transport.Host, fmt.Sprintf("%d", port))
 	var result string
@@ -160,9 +160,9 @@ func deliverSubmit(qlog mlog.Log, resolver dns.Resolver, dialer smtpclient.Diale
 	defer clientcancel()
 	opts := smtpclient.Opts{
 		Auth:    auth,
-		RootCAs: mox.Conf.Static.TLS.CertPool,
+		RootCAs: beacon.Conf.Static.TLS.CertPool,
 	}
-	client, err := smtpclient.New(clientctx, qlog.Logger, conn, tlsMode, tlsPKIX, mox.Conf.Static.HostnameDomain, transport.DNSHost, opts)
+	client, err := smtpclient.New(clientctx, qlog.Logger, conn, tlsMode, tlsPKIX, beacon.Conf.Static.HostnameDomain, transport.DNSHost, opts)
 	if err != nil {
 		smtperr, ok := err.(smtpclient.Error)
 		var remoteMTA dsn.NameIP

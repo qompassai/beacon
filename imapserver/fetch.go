@@ -16,10 +16,10 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/store"
 )
 
 // functions to handle fetch attribute requests are defined on fetchCmd.
@@ -102,7 +102,7 @@ func (c *conn) cmdxFetch(isUID bool, tag, cmdstr string, p *parser) {
 				p.xspace()
 				changedSince = p.xnumber64()
 				// workaround: ios mail (16.5.1) was seen sending changedSince 0 on an existing account that got condstore enabled.
-				if changedSince == 0 && mox.Pedantic {
+				if changedSince == 0 && beacon.Pedantic {
 					// ../rfc/7162:2551
 					xsyntaxErrorf("changedsince modseq must be > 0")
 				}
@@ -681,7 +681,7 @@ func (cmd *fetchCmd) xbody(a fetchAtt) (string, token) {
 				count = m.Size - offset
 			}
 		}
-		return respField, readerSizeSyncliteral{&moxio.AtReader{R: msgr, Offset: offset}, count}
+		return respField, readerSizeSyncliteral{&beaconio.AtReader{R: msgr, Offset: offset}, count}
 	}
 
 	sr := cmd.xsection(a.section, part)

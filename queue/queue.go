@@ -23,24 +23,24 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dsn"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/smtpclient"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrpt"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dsn"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/smtpclient"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrpt"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 var (
 	metricConnection = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_queue_connection_total",
+			Name: "beacon_queue_connection_total",
 			Help: "Queue client connections, outgoing.",
 		},
 		[]string{
@@ -49,7 +49,7 @@ var (
 	)
 	metricDelivery = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "mox_queue_delivery_duration_seconds",
+			Name:    "beacon_queue_delivery_duration_seconds",
 			Help:    "SMTP client delivery attempt to single host.",
 			Buckets: []float64{0.01, 0.05, 0.100, 0.5, 1, 5, 10, 20, 30, 60, 120},
 		},
@@ -62,12 +62,12 @@ var (
 	)
 )
 
-var jitter = mox.NewPseudoRand()
+var jitter = beacon.NewPseudoRand()
 
 var DBTypes = []any{Msg{}} // Types stored in DB.
 var DB *bstore.DB          // Exported for making backups.
 
-// Set for mox localserve, to prevent queueing.
+// Set for beacon localserve, to prevent queueing.
 var Localserve bool
 
 // Msg is a message in the queue.
@@ -136,12 +136,12 @@ func (m Msg) Recipient() smtp.Path {
 
 // MessagePath returns the path where the message is stored.
 func (m Msg) MessagePath() string {
-	return mox.DataDirPath(filepath.Join("queue", store.MessagePath(m.ID)))
+	return beacon.DataDirPath(filepath.Join("queue", store.MessagePath(m.ID)))
 }
 
 // Init opens the queue database without starting delivery.
 func Init() error {
-	qpath := mox.DataDirPath(filepath.FromSlash("queue/index.db"))
+	qpath := beacon.DataDirPath(filepath.FromSlash("queue/index.db"))
 	os.MkdirAll(filepath.Dir(qpath), 0770)
 	isNew := false
 	if _, err := os.Stat(qpath); err != nil && os.IsNotExist(err) {
@@ -149,7 +149,7 @@ func Init() error {
 	}
 
 	var err error
-	DB, err = bstore.Open(mox.Shutdown, qpath, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, DBTypes...)
+	DB, err = bstore.Open(beacon.Shutdown, qpath, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, DBTypes...)
 	if err != nil {
 		if isNew {
 			os.Remove(qpath)
@@ -201,7 +201,7 @@ func Count(ctx context.Context) (int, error) {
 // MakeMsg is a convenience function that sets the commonly used fields for a Msg.
 func MakeMsg(senderAccount string, sender, recipient smtp.Path, has8bit, smtputf8 bool, size int64, messageID string, prefix []byte, requireTLS *bool) Msg {
 	return Msg{
-		SenderAccount:      mox.Conf.Static.Postmaster.Account,
+		SenderAccount:      beacon.Conf.Static.Postmaster.Account,
 		SenderLocalpart:    sender.Localpart,
 		SenderDomain:       sender.IPDomain,
 		RecipientLocalpart: recipient.Localpart,
@@ -285,9 +285,9 @@ func Add(ctx context.Context, log mlog.Log, qm *Msg, msgFile *os.File) error {
 	}()
 	dstDir := filepath.Dir(dst)
 	os.MkdirAll(dstDir, 0770)
-	if err := moxio.LinkOrCopy(log, dst, msgFile.Name(), nil, true); err != nil {
+	if err := beaconio.LinkOrCopy(log, dst, msgFile.Name(), nil, true); err != nil {
 		return fmt.Errorf("linking/copying message to new file: %s", err)
-	} else if err := moxio.SyncDir(log, dstDir); err != nil {
+	} else if err := beaconio.SyncDir(log, dstDir); err != nil {
 		return fmt.Errorf("sync directory: %v", err)
 	}
 
@@ -342,7 +342,7 @@ func Kick(ctx context.Context, ID int64, toDomain, recipient string, transport *
 	up := map[string]any{"NextAttempt": time.Now()}
 	if transport != nil {
 		if *transport != "" {
-			_, ok := mox.Conf.Static.Transports[*transport]
+			_, ok := beacon.Conf.Static.Transports[*transport]
 			if !ok {
 				return 0, fmt.Errorf("unknown transport %q", *transport)
 			}
@@ -439,7 +439,7 @@ func Start(resolver dns.Resolver, done chan struct{}) error {
 
 		for {
 			select {
-			case <-mox.Shutdown.Done():
+			case <-beacon.Shutdown.Done():
 				done <- struct{}{}
 				return
 			case <-kick:
@@ -453,7 +453,7 @@ func Start(resolver dns.Resolver, done chan struct{}) error {
 			}
 
 			launchWork(log, resolver, busyDomains)
-			timer.Reset(nextWork(mox.Shutdown, log, busyDomains))
+			timer.Reset(nextWork(beacon.Shutdown, log, busyDomains))
 		}
 	}()
 	return nil
@@ -481,7 +481,7 @@ func nextWork(ctx context.Context, log mlog.Log, busyDomains map[string]struct{}
 }
 
 func launchWork(log mlog.Log, resolver dns.Resolver, busyDomains map[string]struct{}) int {
-	q := bstore.QueryDB[Msg](mox.Shutdown, DB)
+	q := bstore.QueryDB[Msg](beacon.Shutdown, DB)
 	q.FilterLessEqual("NextAttempt", time.Now())
 	q.SortAsc("NextAttempt")
 	q.Limit(maxConcurrentDeliveries)
@@ -495,7 +495,7 @@ func launchWork(log mlog.Log, resolver dns.Resolver, busyDomains map[string]stru
 	msgs, err := q.List()
 	if err != nil {
 		log.Errorx("querying for work in queue", err)
-		mox.Sleep(mox.Shutdown, 1*time.Second)
+		beacon.Sleep(beacon.Shutdown, 1*time.Second)
 		return -1
 	}
 
@@ -513,7 +513,7 @@ func queueDelete(ctx context.Context, msgID int64) error {
 	}
 	// If removing from database fails, we'll also leave the file in the file system.
 
-	p := mox.DataDirPath(filepath.Join("queue", store.MessagePath(msgID)))
+	p := beacon.DataDirPath(filepath.Join("queue", store.MessagePath(msgID)))
 	if err := os.Remove(p); err != nil {
 		return fmt.Errorf("removing queue message from file system: %v", err)
 	}
@@ -525,9 +525,9 @@ func queueDelete(ctx context.Context, msgID int64) error {
 // The queue is updated, either by removing a delivered or permanently failed
 // message, or updating the time for the next attempt. A DSN may be sent.
 func deliver(log mlog.Log, resolver dns.Resolver, m Msg) {
-	ctx := mox.Shutdown
+	ctx := beacon.Shutdown
 
-	qlog := log.WithCid(mox.Cid()).With(slog.Any("from", m.Sender()),
+	qlog := log.WithCid(beacon.Cid()).With(slog.Any("from", m.Sender()),
 		slog.Any("recipient", m.Recipient()),
 		slog.Int("attempts", m.Attempts),
 		slog.Int64("msgid", m.ID))
@@ -558,7 +558,7 @@ func deliver(log mlog.Log, resolver dns.Resolver, m Msg) {
 	now := time.Now()
 	m.LastAttempt = &now
 	m.NextAttempt = now.Add(backoff)
-	qup := bstore.QueryDB[Msg](mox.Shutdown, DB)
+	qup := bstore.QueryDB[Msg](beacon.Shutdown, DB)
 	qup.FilterID(m.ID)
 	update := Msg{Attempts: m.Attempts, NextAttempt: m.NextAttempt, LastAttempt: m.LastAttempt}
 	if _, err := qup.UpdateNonzero(update); err != nil {
@@ -571,7 +571,7 @@ func deliver(log mlog.Log, resolver dns.Resolver, m Msg) {
 	var transportName string
 	if m.Transport != "" {
 		var ok bool
-		transport, ok = mox.Conf.Static.Transports[m.Transport]
+		transport, ok = beacon.Conf.Static.Transports[m.Transport]
 		if !ok {
 			var remoteMTA dsn.NameIP // Zero value, will not be included in DSN. ../rfc/3464:1027
 			fail(ctx, qlog, m, backoff, false, remoteMTA, "", fmt.Sprintf("cannot find transport %q", m.Transport))
@@ -605,7 +605,7 @@ func deliver(log mlog.Log, resolver dns.Resolver, m Msg) {
 	var recipientDomainResult tlsrpt.Result
 	var hostResults []tlsrpt.Result
 	defer func() {
-		if mox.Conf.Static.NoOutgoingTLSReports || m.RecipientDomain.IsIP() {
+		if beacon.Conf.Static.NoOutgoingTLSReports || m.RecipientDomain.IsIP() {
 			return
 		}
 
@@ -681,7 +681,7 @@ func deliver(log mlog.Log, resolver dns.Resolver, m Msg) {
 		// todo future: perhaps also gather tlsrpt results for submissions.
 		deliverSubmit(qlog, resolver, dialer, m, backoff, transportName, transport.SMTP, false, 25)
 	} else {
-		ourHostname := mox.Conf.Static.HostnameDomain
+		ourHostname := beacon.Conf.Static.HostnameDomain
 		if transport.Socks != nil {
 			socksdialer, err := proxy.SOCKS5("tcp", transport.Socks.Address, nil, &net.Dialer{})
 			if err != nil {
@@ -700,7 +700,7 @@ func deliver(log mlog.Log, resolver dns.Resolver, m Msg) {
 }
 
 func findRoute(attempt int, m Msg) config.Route {
-	routesAccount, routesDomain, routesGlobal := mox.Conf.Routes(m.SenderAccount, m.SenderDomain.Domain)
+	routesAccount, routesDomain, routesGlobal := beacon.Conf.Routes(m.SenderAccount, m.SenderDomain.Domain)
 	if r, ok := findRouteInList(attempt, m, routesAccount); ok {
 		return r
 	}

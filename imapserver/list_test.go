@@ -3,15 +3,15 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/imapclient"
+	"github.com/qompassai/beacon/store"
 )
 
 func TestListBasic(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 
 	ulist := func(name string, flags ...string) imapclient.UntaggedList {
 		if len(flags) == 0 {
@@ -61,7 +61,7 @@ func TestListExtended(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 
 	ulist := func(name string, flags ...string) imapclient.UntaggedList {
 		if len(flags) == 0 {

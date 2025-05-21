@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/smtp"
 )
 
 var errBadMessageID = errors.New("not a message-id")

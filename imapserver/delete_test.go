@@ -3,7 +3,7 @@ package imapserver
 import (
 	"testing"
 
-	"github.com/mjl-/mox/imapclient"
+	"github.com/qompassai/beacon/imapclient"
 )
 
 func TestDelete(t *testing.T) {
@@ -16,9 +16,9 @@ func TestDelete(t *testing.T) {
 	tc3 := startNoSwitchboard(t)
 	defer tc3.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
-	tc2.client.Login("mjl@mox.example", "testtest")
-	tc3.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
+	tc3.client.Login("mjl@beacon.example", "testtest")
 
 	tc.transactf("bad", "delete")              // Missing mailbox.
 	tc.transactf("no", "delete inbox")         // Cannot delete inbox.

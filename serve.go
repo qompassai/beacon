@@ -5,27 +5,27 @@ import (
 	"os"
 	"time"
 
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/http"
-	"github.com/mjl-/mox/imapserver"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtpserver"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrptdb"
-	"github.com/mjl-/mox/tlsrptsend"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/http"
+	"github.com/qompassai/beacon/imapserver"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtpserver"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrptdb"
+	"github.com/qompassai/beacon/tlsrptsend"
 )
 
 func shutdown(log mlog.Log) {
 	// We indicate we are shutting down. Causes new connections and new SMTP commands
 	// to be rejected. Should stop active connections pretty quickly.
-	mox.ShutdownCancel()
+	beacon.ShutdownCancel()
 
 	// Now we are going to wait for all connections to be gone, up to a timeout.
-	done := mox.Connections.Done()
+	done := beacon.Connections.Done()
 	second := time.Tick(time.Second)
 	select {
 	case <-done:
@@ -35,8 +35,8 @@ func shutdown(log mlog.Log) {
 	case <-time.Tick(3 * time.Second):
 		// We now cancel all pending operations, and set an immediate deadline on sockets.
 		// Should get us a clean shutdown relatively quickly.
-		mox.ContextCancel()
-		mox.Connections.Shutdown()
+		beacon.ContextCancel()
+		beacon.Connections.Shutdown()
 
 		second := time.Tick(time.Second)
 		select {
@@ -47,7 +47,7 @@ func shutdown(log mlog.Log) {
 			log.Print("shutting down with pending sockets")
 		}
 	}
-	err := os.Remove(mox.DataDirPath("ctl"))
+	err := os.Remove(beacon.DataDirPath("ctl"))
 	log.Check(err, "removing ctl unix domain socket during shutdown")
 }
 
@@ -63,10 +63,10 @@ func start(mtastsdbRefresher, sendDMARCReports, sendTLSReports, skipForkExec boo
 		// over the bound sockets to the new process. We'll get to this same code path
 		// again, skipping this if block, continuing below with the actual serving.
 		if os.Getuid() == 0 {
-			mox.ForkExecUnprivileged()
+			beacon.ForkExecUnprivileged()
 			panic("cannot happen")
 		} else {
-			mox.CleanupPassedFiles()
+			beacon.CleanupPassedFiles()
 		}
 	}
 

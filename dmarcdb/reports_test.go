@@ -8,19 +8,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 var ctxbg = context.Background()
 
 func TestDMARCDB(t *testing.T) {
-	mox.Shutdown = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/dmarcdb/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Shutdown = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/dmarcdb/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 
-	dbpath := mox.DataDirPath("dmarcrpt.db")
+	dbpath := beacon.DataDirPath("dmarcrpt.db")
 	os.MkdirAll(filepath.Dir(dbpath), 0770)
 
 	if err := Init(); err != nil {

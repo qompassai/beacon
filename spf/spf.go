@@ -18,10 +18,10 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/stub"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/stub"
 )
 
 // The net package always returns DNS names in absolute, lower-case form. We make

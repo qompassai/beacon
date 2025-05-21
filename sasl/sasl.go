@@ -10,7 +10,7 @@ import (
 	"hash"
 	"strings"
 
-	"github.com/mjl-/mox/scram"
+	"github.com/qompassai/beacon/scram"
 )
 
 // Client is a SASL client.

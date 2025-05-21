@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/scram"
+	"github.com/qompassai/beacon/scram"
 )
 
 func TestAuthenticatePlain(t *testing.T) {
@@ -22,27 +22,27 @@ func TestAuthenticatePlain(t *testing.T) {
 	tc.transactf("bad", "authenticate plain not base64...")
 	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000baduser\u0000badpass")))
 	tc.xcode("AUTHENTICATIONFAILED")
-	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@mox.example\u0000badpass")))
+	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@beacon.example\u0000badpass")))
 	tc.xcode("AUTHENTICATIONFAILED")
 	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl\u0000badpass"))) // Need email, not account.
 	tc.xcode("AUTHENTICATIONFAILED")
-	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@mox.example\u0000test")))
+	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@beacon.example\u0000test")))
 	tc.xcode("AUTHENTICATIONFAILED")
-	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@mox.example\u0000testtesttest")))
+	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@beacon.example\u0000testtesttest")))
 	tc.xcode("AUTHENTICATIONFAILED")
 	tc.transactf("bad", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000")))
 	tc.xcode("")
-	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("other\u0000mjl@mox.example\u0000testtest")))
+	tc.transactf("no", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("other\u0000mjl@beacon.example\u0000testtest")))
 	tc.xcode("AUTHORIZATIONFAILED")
-	tc.transactf("ok", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@mox.example\u0000testtest")))
+	tc.transactf("ok", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@beacon.example\u0000testtest")))
 	tc.close()
 
 	tc = start(t)
-	tc.transactf("ok", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("mjl@mox.example\u0000mjl@mox.example\u0000testtest")))
+	tc.transactf("ok", "authenticate plain %s", base64.StdEncoding.EncodeToString([]byte("mjl@beacon.example\u0000mjl@beacon.example\u0000testtest")))
 	tc.close()
 
 	tc = start(t)
-	tc.client.AuthenticatePlain("mjl@mox.example", "testtest")
+	tc.client.AuthenticatePlain("mjl@beacon.example", "testtest")
 	tc.close()
 
 	tc = start(t)
@@ -55,7 +55,7 @@ func TestAuthenticatePlain(t *testing.T) {
 
 	tc.cmdf("", "authenticate plain")
 	tc.readprefixline("+ ")
-	tc.writelinef("%s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@mox.example\u0000testtest")))
+	tc.writelinef("%s", base64.StdEncoding.EncodeToString([]byte("\u0000mjl@beacon.example\u0000testtest")))
 	tc.readstatus("ok")
 }
 
@@ -77,7 +77,7 @@ func TestAuthenticateSCRAMSHA256PLUS(t *testing.T) {
 
 func testAuthenticateSCRAM(t *testing.T, tls bool, method string, h func() hash.Hash) {
 	tc := startArgs(t, true, tls, true, true, "mjl")
-	tc.client.AuthenticateSCRAM(method, h, "mjl@mox.example", "testtest")
+	tc.client.AuthenticateSCRAM(method, h, "mjl@beacon.example", "testtest")
 	tc.close()
 
 	auth := func(status string, serverFinalError error, username, password string) {
@@ -126,10 +126,10 @@ func testAuthenticateSCRAM(t *testing.T, tls bool, method string, h func() hash.
 	}
 
 	tc = startArgs(t, true, tls, true, true, "mjl")
-	auth("no", scram.ErrInvalidProof, "mjl@mox.example", "badpass")
-	auth("no", scram.ErrInvalidProof, "mjl@mox.example", "")
+	auth("no", scram.ErrInvalidProof, "mjl@beacon.example", "badpass")
+	auth("no", scram.ErrInvalidProof, "mjl@beacon.example", "")
 	// todo: server aborts due to invalid username. we should probably make client continue with fake determinisitically generated salt and result in error in the end.
-	// auth("no", nil, "other@mox.example", "testtest")
+	// auth("no", nil, "other@beacon.example", "testtest")
 
 	tc.transactf("no", "authenticate bogus ")
 	tc.transactf("bad", "authenticate %s not base64...", method)
@@ -175,11 +175,11 @@ func TestAuthenticateCRAMMD5(t *testing.T) {
 		}
 	}
 
-	auth("no", "mjl@mox.example", "badpass")
-	auth("no", "mjl@mox.example", "")
-	auth("no", "other@mox.example", "testtest")
+	auth("no", "mjl@beacon.example", "badpass")
+	auth("no", "mjl@beacon.example", "")
+	auth("no", "other@beacon.example", "testtest")
 
-	auth("ok", "mjl@mox.example", "testtest")
+	auth("ok", "mjl@beacon.example", "testtest")
 
 	tc.close()
 }

@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 func TestServeHTTP(t *testing.T) {
 	os.RemoveAll("../testdata/web/data")
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/web/mox.conf")
-	mox.ConfigDynamicPath = filepath.Join(filepath.Dir(mox.ConfigStaticPath), "domains.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/web/beacon.conf")
+	beacon.ConfigDynamicPath = filepath.Join(filepath.Dir(beacon.ConfigStaticPath), "domains.conf")
+	beacon.MustLoadConfig(true, false)
 
 	srv := &serve{
 		PathHandlers: []pathHandler{
@@ -58,12 +58,12 @@ func TestServeHTTP(t *testing.T) {
 		}
 	}
 
-	test("GET", "http://mta-sts.mox.example/.well-known/mta-sts.txt", http.StatusOK, "mta-sts!", nil)
-	test("GET", "http://mox.example/.well-known/mta-sts.txt", http.StatusNotFound, "", nil) // mta-sts endpoint not in this domain.
-	test("GET", "http://mta-sts.mox.example/static/", http.StatusNotFound, "", nil)         // static not served on this domain.
-	test("GET", "http://mta-sts.mox.example/other", http.StatusNotFound, "", nil)
-	test("GET", "http://mox.example/static/", http.StatusOK, "html\n", map[string]string{"X-Test": "mox"}) // index.html is served
-	test("GET", "http://mox.example/static/index.html", http.StatusOK, "html\n", map[string]string{"X-Test": "mox"})
-	test("GET", "http://mox.example/static/dir/", http.StatusOK, "", map[string]string{"X-Test": "mox"}) // Dir listing.
-	test("GET", "http://mox.example/other", http.StatusNotFound, "", nil)
+	test("GET", "http://mta-sts.beacon.example/.well-known/mta-sts.txt", http.StatusOK, "mta-sts!", nil)
+	test("GET", "http://beacon.example/.well-known/mta-sts.txt", http.StatusNotFound, "", nil) // mta-sts endpoint not in this domain.
+	test("GET", "http://mta-sts.beacon.example/static/", http.StatusNotFound, "", nil)         // static not served on this domain.
+	test("GET", "http://mta-sts.beacon.example/other", http.StatusNotFound, "", nil)
+	test("GET", "http://beacon.example/static/", http.StatusOK, "html\n", map[string]string{"X-Test": "beacon"}) // index.html is served
+	test("GET", "http://beacon.example/static/index.html", http.StatusOK, "html\n", map[string]string{"X-Test": "beacon"})
+	test("GET", "http://beacon.example/static/dir/", http.StatusOK, "", map[string]string{"X-Test": "beacon"}) // Dir listing.
+	test("GET", "http://beacon.example/other", http.StatusNotFound, "", nil)
 }

@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
 )
 
 var pkglog = mlog.New("dkim", nil)
@@ -89,8 +89,8 @@ mtrKWknTDQ==
 
 func TestParseSignature(t *testing.T) {
 	// Domain name must always be A-labels, not U-labels. We do allow localpart with non-ascii.
-	hdr := `DKIM-Signature: v=1; a=rsa-sha256; d=xn--h-bga.mox.example; s=xn--yr2021-pua;
-        i=møx@xn--h-bga.mox.example; t=1643719203; h=From:To:Cc:Bcc:Reply-To:
+	hdr := `DKIM-Signature: v=1; a=rsa-sha256; d=xn--h-bga.beacon.example; s=xn--yr2021-pua;
+        i=møx@xn--h-bga.beacon.example; t=1643719203; h=From:To:Cc:Bcc:Reply-To:
         References:In-Reply-To:Subject:Date:Message-ID:Content-Type:From:To:Subject:
         Date:Message-ID:Content-Type;
         bh=g3zLYH4xKxcPrHOD18z9YfpQcnk/GaJedfustWU5uGs=; b=dtgAOl71h/dNPQrmZTi3SBVkm+
@@ -256,7 +256,7 @@ test
 	selectors := []Selector{selrsa, selrsa2, seled25519, seled25519b}
 
 	ctx := context.Background()
-	headers, err := Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader(message))
+	headers, err := Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader(message))
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -278,10 +278,10 @@ test
 
 	resolver := dns.MockResolver{
 		TXT: map[string][]string{
-			"testrsa._domainkey.mox.example.":      {makeRecord("rsa", rsaKey.Public())},
-			"testrsa2._domainkey.mox.example.":     {makeRecord("rsa", rsaKey.Public())},
-			"tested25519._domainkey.mox.example.":  {makeRecord("ed25519", ed25519Key.Public())},
-			"tested25519b._domainkey.mox.example.": {makeRecord("ed25519", ed25519Key.Public())},
+			"testrsa._domainkey.beacon.example.":      {makeRecord("rsa", rsaKey.Public())},
+			"testrsa2._domainkey.beacon.example.":     {makeRecord("rsa", rsaKey.Public())},
+			"tested25519._domainkey.beacon.example.":  {makeRecord("ed25519", ed25519Key.Public())},
+			"tested25519b._domainkey.beacon.example.": {makeRecord("ed25519", ed25519Key.Public())},
 		},
 	}
 
@@ -298,31 +298,31 @@ test
 	//log.Infof("nmsg\n%s", nmsg)
 
 	// Multiple From headers.
-	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader("From: <mjl@mox.example>\r\nFrom: <mjl@mox.example>\r\n\r\ntest"))
+	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader("From: <mjl@beacon.example>\r\nFrom: <mjl@beacon.example>\r\n\r\ntest"))
 	if !errors.Is(err, ErrFrom) {
 		t.Fatalf("sign, got err %v, expected ErrFrom", err)
 	}
 
 	// No From header.
-	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader("Brom: <mjl@mox.example>\r\n\r\ntest"))
+	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader("Brom: <mjl@beacon.example>\r\n\r\ntest"))
 	if !errors.Is(err, ErrFrom) {
 		t.Fatalf("sign, got err %v, expected ErrFrom", err)
 	}
 
 	// Malformed headers.
-	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader(":\r\n\r\ntest"))
+	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader(":\r\n\r\ntest"))
 	if !errors.Is(err, ErrHeaderMalformed) {
 		t.Fatalf("sign, got err %v, expected ErrHeaderMalformed", err)
 	}
-	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader(" From:<mjl@mox.example>\r\n\r\ntest"))
+	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader(" From:<mjl@beacon.example>\r\n\r\ntest"))
 	if !errors.Is(err, ErrHeaderMalformed) {
 		t.Fatalf("sign, got err %v, expected ErrHeaderMalformed", err)
 	}
-	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader("Frøm:<mjl@mox.example>\r\n\r\ntest"))
+	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader("Frøm:<mjl@beacon.example>\r\n\r\ntest"))
 	if !errors.Is(err, ErrHeaderMalformed) {
 		t.Fatalf("sign, got err %v, expected ErrHeaderMalformed", err)
 	}
-	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "mox.example"}, selectors, false, strings.NewReader("From:<mjl@mox.example>"))
+	_, err = Sign(ctx, pkglog.Logger, "mjl", dns.Domain{ASCII: "beacon.example"}, selectors, false, strings.NewReader("From:<mjl@beacon.example>"))
 	if !errors.Is(err, ErrHeaderMalformed) {
 		t.Fatalf("sign, got err %v, expected ErrHeaderMalformed", err)
 	}
@@ -332,11 +332,11 @@ func TestVerify(t *testing.T) {
 	// We do many Verify calls, each time starting out with a valid configuration, then
 	// we modify one thing to trigger an error, which we check for.
 
-	const message = `From: <mjl@mox.example>
-To: <other@mox.example>
+	const message = `From: <mjl@beacon.example>
+To: <other@beacon.example>
 Subject: test
 Date: Fri, 10 Dec 2021 20:09:08 +0100
-Message-ID: <test@mox.example>
+Message-ID: <test@beacon.example>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
@@ -359,7 +359,7 @@ test
 		t.Helper()
 
 		policy = DefaultPolicy
-		signDomain = dns.Domain{ASCII: "mox.example"}
+		signDomain = dns.Domain{ASCII: "beacon.example"}
 
 		record = &Record{
 			Version:   "DKIM1",
@@ -376,7 +376,7 @@ test
 
 		resolver = dns.MockResolver{
 			TXT: map[string][]string{
-				"test._domainkey.mox.example.": {txt},
+				"test._domainkey.beacon.example.": {txt},
 			},
 		}
 
@@ -450,24 +450,24 @@ test
 	// DNS request is failing temporarily.
 	test(nil, StatusTemperror, ErrDNS, func() {
 		resolver.Fail = []string{
-			"txt test._domainkey.mox.example.",
+			"txt test._domainkey.beacon.example.",
 		}
 	})
 	// Claims to be DKIM through v=, but cannot be parsed. ../rfc/6376:2621
 	test(nil, StatusPermerror, ErrSyntax, func() {
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {"v=DKIM1; bogus"},
+			"test._domainkey.beacon.example.": {"v=DKIM1; bogus"},
 		}
 	})
 	// Not a DKIM record. ../rfc/6376:2621
 	test(nil, StatusTemperror, ErrSyntax, func() {
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {"bogus"},
+			"test._domainkey.beacon.example.": {"bogus"},
 		}
 	})
 	// Multiple dkim records. ../rfc/6376:1609
 	test(nil, StatusTemperror, ErrMultipleRecords, func() {
-		resolver.TXT["test._domainkey.mox.example."] = []string{recordTxt, recordTxt}
+		resolver.TXT["test._domainkey.beacon.example."] = []string{recordTxt, recordTxt}
 	})
 
 	// Invalid DKIM-Signature header. ../rfc/6376:2503
@@ -488,7 +488,7 @@ test
 	// Domain in signature is higher-level than organizational domain. ../rfc/6376:2554
 	test(nil, StatusPermerror, ErrTLD, func() {
 		// Pretend to sign as .com
-		msg = strings.ReplaceAll(msg, "From: <mjl@mox.example>\n", "From: <mjl@com>\n")
+		msg = strings.ReplaceAll(msg, "From: <mjl@beacon.example>\n", "From: <mjl@com>\n")
 		signDomain = dns.Domain{ASCII: "com"}
 		resolver.TXT = map[string][]string{
 			"test._domainkey.com.": {recordTxt},
@@ -523,7 +523,7 @@ test
 	test(nil, StatusPermerror, ErrHashAlgNotAllowed, func() {
 		recordTxt += ";h=sha1"
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {recordTxt},
+			"test._domainkey.beacon.example.": {recordTxt},
 		}
 	})
 	// Signature algorithm mismatch. ../rfc/6376:2651
@@ -535,7 +535,7 @@ test
 			t.Fatalf("making dns txt record: %s", err)
 		}
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {txt},
+			"test._domainkey.beacon.example.": {txt},
 		}
 	})
 	// Empty public key means revoked key. ../rfc/6376:2645
@@ -546,7 +546,7 @@ test
 			t.Fatalf("making dns txt record: %s", err)
 		}
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {txt},
+			"test._domainkey.beacon.example.": {txt},
 		}
 	})
 	// We refuse rsa keys smaller than 1024 bits.
@@ -559,7 +559,7 @@ test
 			t.Fatalf("making dns txt record: %s", err)
 		}
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {txt},
+			"test._domainkey.beacon.example.": {txt},
 		}
 		sel.PrivateKey = key
 		selectors = []Selector{sel}
@@ -568,7 +568,7 @@ test
 	test(nil, StatusPermerror, ErrKeyNotForEmail, func() {
 		recordTxt += ";s=other"
 		resolver.TXT = map[string][]string{
-			"test._domainkey.mox.example.": {recordTxt},
+			"test._domainkey.beacon.example.": {recordTxt},
 		}
 	})
 	// todo: Record has flag "s" but identity does not have exact domain match. Cannot currently easily implement this test because Sign() always uses the same domain. ../rfc/6376:1575

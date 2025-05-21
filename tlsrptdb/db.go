@@ -5,8 +5,8 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 var (
@@ -21,10 +21,10 @@ var (
 
 // Init opens and possibly initializes the databases.
 func Init() error {
-	if _, err := reportDB(mox.Shutdown); err != nil {
+	if _, err := reportDB(beacon.Shutdown); err != nil {
 		return err
 	}
-	if _, err := resultDB(mox.Shutdown); err != nil {
+	if _, err := resultDB(beacon.Shutdown); err != nil {
 		return err
 	}
 	return nil

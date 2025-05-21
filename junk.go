@@ -4,13 +4,13 @@ package main
 note: these testdata paths are not in the repo, you should gather some of your
 own ham/spam emails.
 
-./mox junk train testdata/train/ham testdata/train/spam
-./mox junk train -sent-dir testdata/sent testdata/train/ham testdata/train/spam
-./mox junk check 'testdata/check/ham/mail1'
-./mox junk test testdata/check/ham testdata/check/spam
-./mox junk analyze testdata/train/ham testdata/train/spam
-./mox junk analyze -top-words 10 -train-ratio 0.5 -spam-threshold 0.85 -max-power 0.01 -sent-dir testdata/sent testdata/train/ham testdata/train/spam
-./mox junk play -top-words 10 -train-ratio 0.5 -spam-threshold 0.85 -max-power 0.01 -sent-dir testdata/sent testdata/train/ham testdata/train/spam
+./beacon junk train testdata/train/ham testdata/train/spam
+./beacon junk train -sent-dir testdata/sent testdata/train/ham testdata/train/spam
+./beacon junk check 'testdata/check/ham/mail1'
+./beacon junk test testdata/check/ham testdata/check/spam
+./beacon junk analyze testdata/train/ham testdata/train/spam
+./beacon junk analyze -top-words 10 -train-ratio 0.5 -spam-threshold 0.85 -max-power 0.01 -sent-dir testdata/sent testdata/train/ham testdata/train/spam
+./beacon junk play -top-words 10 -train-ratio 0.5 -spam-threshold 0.85 -max-power 0.01 -sent-dir testdata/sent testdata/train/ham testdata/train/spam
 */
 
 import (
@@ -24,10 +24,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mjl-/mox/junk"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/junk"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 type junkArgs struct {
@@ -41,11 +41,11 @@ type junkArgs struct {
 }
 
 func (a junkArgs) SetLogLevel() {
-	mox.Conf.Log[""] = mlog.LevelInfo
+	beacon.Conf.Log[""] = mlog.LevelInfo
 	if a.debug {
-		mox.Conf.Log[""] = mlog.LevelDebug
+		beacon.Conf.Log[""] = mlog.LevelDebug
 	}
-	mlog.SetConfig(mox.Conf.Log)
+	mlog.SetConfig(beacon.Conf.Log)
 }
 
 func junkFlags(fs *flag.FlagSet) (a junkArgs) {

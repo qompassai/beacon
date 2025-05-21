@@ -9,8 +9,8 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/store"
 )
 
 // Search returns messages matching criteria specified in parameters.

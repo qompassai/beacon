@@ -45,14 +45,14 @@ import (
 
 	"github.com/mjl-/adns"
 
-	"github.com/mjl-/mox/dane"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/stub"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/dane"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/stub"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 // todo future: add function to deliver message to multiple recipients. requires more elaborate return value, indicating success per message: some recipients may succeed, others may fail, and we should still deliver. to prevent backscatter, we also sometimes don't allow multiple recipients. ../rfc/5321:1144
@@ -121,8 +121,8 @@ type Client struct {
 
 	r                       *bufio.Reader
 	w                       *bufio.Writer
-	tr                      *moxio.TraceReader // Kept for changing trace levels between cmd/auth/data.
-	tw                      *moxio.TraceWriter
+	tr                      *beaconio.TraceReader // Kept for changing trace levels between cmd/auth/data.
+	tw                      *beaconio.TraceWriter
 	log                     mlog.Log
 	lastlog                 time.Time // For adding delta timestamps between log lines.
 	cmds                    []string  // Last or active command, for generating errors and metrics.
@@ -297,7 +297,7 @@ func New(ctx context.Context, elog *slog.Logger, conn net.Conn, tlsMode TLSMode,
 		c.firstReadAfterHandshake = true
 		c.tlsResultAdd(1, 0, nil)
 		c.conn = tlsconn
-		tlsversion, ciphersuite := moxio.TLSInfo(tlsconn)
+		tlsversion, ciphersuite := beaconio.TLSInfo(tlsconn)
 		c.log.Debug("tls client handshake done",
 			slog.String("tls", tlsversion),
 			slog.String("ciphersuite", ciphersuite),
@@ -310,11 +310,11 @@ func New(ctx context.Context, elog *slog.Logger, conn net.Conn, tlsMode TLSMode,
 	// We don't wrap reads in a timeoutReader for fear of an optional TLS wrapper doing
 	// reads without the client asking for it. Such reads could result in a timeout
 	// error.
-	c.tr = moxio.NewTraceReader(c.log, "RS: ", c.conn)
+	c.tr = beaconio.NewTraceReader(c.log, "RS: ", c.conn)
 	c.r = bufio.NewReader(c.tr)
 	// We use a single write timeout of 30 seconds.
 	// todo future: use different timeouts ../rfc/5321:3610
-	c.tw = moxio.NewTraceWriter(c.log, "LC: ", timeoutWriter{c.conn, 30 * time.Second, c.log})
+	c.tw = beaconio.NewTraceWriter(c.log, "LC: ", timeoutWriter{c.conn, 30 * time.Second, c.log})
 	c.w = bufio.NewWriter(c.tw)
 
 	if err := c.hello(ctx, tlsMode, ehloHostname, opts.Auth); err != nil {
@@ -458,7 +458,7 @@ func (w timeoutWriter) Write(buf []byte) (int, error) {
 	return w.conn.Write(buf)
 }
 
-var bufs = moxio.NewBufpool(8, 2*1024)
+var bufs = beaconio.NewBufpool(8, 2*1024)
 
 func (c *Client) readline() (string, error) {
 	// todo: could have per-operation timeouts. and rfc suggests higher minimum timeouts. ../rfc/5321:3610
@@ -768,7 +768,7 @@ func (c *Client) hello(ctx context.Context, tlsMode TLSMode, ehloHostname dns.Do
 		// handshake.
 		conn := c.conn
 		if n := c.r.Buffered(); n > 0 {
-			conn = &moxio.PrefixConn{
+			conn = &beaconio.PrefixConn{
 				PrefixReader: io.LimitReader(c.r, int64(n)),
 				Conn:         conn,
 			}
@@ -790,12 +790,12 @@ func (c *Client) hello(ctx context.Context, tlsMode TLSMode, ehloHostname dns.Do
 		}
 		c.firstReadAfterHandshake = true
 		cancel()
-		c.tr = moxio.NewTraceReader(c.log, "RS: ", c.conn)
-		c.tw = moxio.NewTraceWriter(c.log, "LC: ", c.conn) // No need to wrap in timeoutWriter, it would just set the timeout on the underlying connection, which is still active.
+		c.tr = beaconio.NewTraceReader(c.log, "RS: ", c.conn)
+		c.tw = beaconio.NewTraceWriter(c.log, "LC: ", c.conn) // No need to wrap in timeoutWriter, it would just set the timeout on the underlying connection, which is still active.
 		c.r = bufio.NewReader(c.tr)
 		c.w = bufio.NewWriter(c.tw)
 
-		tlsversion, ciphersuite := moxio.TLSInfo(nconn)
+		tlsversion, ciphersuite := beaconio.TLSInfo(nconn)
 		c.log.Debug("starttls client handshake done",
 			slog.Any("tlsmode", tlsMode),
 			slog.Bool("verifypkix", c.tlsVerifyPKIX),

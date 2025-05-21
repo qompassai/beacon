@@ -10,14 +10,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mjl-/mox/dmarcdb"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/dmarcdb"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 var ctxbg = context.Background()
@@ -35,10 +35,10 @@ func tcheck(t *testing.T, err error, errmsg string) {
 // unhandled errors would cause a panic.
 func TestCtl(t *testing.T) {
 	os.RemoveAll("testdata/ctl/data")
-	mox.ConfigStaticPath = filepath.FromSlash("testdata/ctl/mox.conf")
-	mox.ConfigDynamicPath = filepath.FromSlash("testdata/ctl/domains.conf")
-	if errs := mox.LoadConfig(ctxbg, pkglog, true, false); len(errs) > 0 {
-		t.Fatalf("loading mox config: %v", errs)
+	beacon.ConfigStaticPath = filepath.FromSlash("testdata/ctl/beacon.conf")
+	beacon.ConfigDynamicPath = filepath.FromSlash("testdata/ctl/domains.conf")
+	if errs := beacon.LoadConfig(ctxbg, pkglog, true, false); len(errs) > 0 {
+		t.Fatalf("loading beacon config: %v", errs)
 	}
 	defer store.Switchboard()()
 
@@ -56,7 +56,7 @@ func TestCtl(t *testing.T) {
 
 	// "deliver"
 	testctl(func(ctl *ctl) {
-		ctlcmdDeliver(ctl, "mjl@mox.example")
+		ctlcmdDeliver(ctl, "mjl@beacon.example")
 	})
 
 	// "setaccountpassword"
@@ -96,22 +96,22 @@ func TestCtl(t *testing.T) {
 
 	// "domainadd"
 	testctl(func(ctl *ctl) {
-		ctlcmdConfigDomainAdd(ctl, dns.Domain{ASCII: "mox2.example"}, "mjl", "")
+		ctlcmdConfigDomainAdd(ctl, dns.Domain{ASCII: "beacon2.example"}, "mjl", "")
 	})
 
 	// "accountadd"
 	testctl(func(ctl *ctl) {
-		ctlcmdConfigAccountAdd(ctl, "mjl2", "mjl2@mox2.example")
+		ctlcmdConfigAccountAdd(ctl, "mjl2", "mjl2@beacon2.example")
 	})
 
 	// "addressadd"
 	testctl(func(ctl *ctl) {
-		ctlcmdConfigAddressAdd(ctl, "mjl3@mox2.example", "mjl2")
+		ctlcmdConfigAddressAdd(ctl, "mjl3@beacon2.example", "mjl2")
 	})
 
 	// Add a message.
 	testctl(func(ctl *ctl) {
-		ctlcmdDeliver(ctl, "mjl3@mox2.example")
+		ctlcmdDeliver(ctl, "mjl3@beacon2.example")
 	})
 	// "retrain", retrain junk filter.
 	testctl(func(ctl *ctl) {
@@ -120,7 +120,7 @@ func TestCtl(t *testing.T) {
 
 	// "addressrm"
 	testctl(func(ctl *ctl) {
-		ctlcmdConfigAddressRemove(ctl, "mjl3@mox2.example")
+		ctlcmdConfigAddressRemove(ctl, "mjl3@beacon2.example")
 	})
 
 	// "accountrm"
@@ -130,7 +130,7 @@ func TestCtl(t *testing.T) {
 
 	// "domainrm"
 	testctl(func(ctl *ctl) {
-		ctlcmdConfigDomainRemove(ctl, dns.Domain{ASCII: "mox2.example"})
+		ctlcmdConfigDomainRemove(ctl, dns.Domain{ASCII: "beacon2.example"})
 	})
 
 	// "loglevels"

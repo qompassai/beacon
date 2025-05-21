@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mjl-/mox/dsn"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dsn"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
 // compose dsn message and add it to the queue for delivery to rcptTo.
@@ -18,7 +18,7 @@ func queueDSN(ctx context.Context, log mlog.Log, c *conn, rcptTo smtp.Path, m ds
 	if err != nil {
 		return err
 	}
-	bufDKIM, err := mox.DKIMSign(ctx, c.log, m.From, false, buf)
+	bufDKIM, err := beacon.DKIMSign(ctx, c.log, m.From, false, buf)
 	log.Check(err, "dkim signing dsn")
 	buf = append([]byte(bufDKIM), buf...)
 
@@ -28,7 +28,7 @@ func queueDSN(ctx context.Context, log mlog.Log, c *conn, rcptTo smtp.Path, m ds
 		if err != nil {
 			c.log.Errorx("composing dsn with utf-8 for incoming delivery for unknown user, continuing with ascii-only dsn", err)
 		} else {
-			bufUTF8DKIM, err := mox.DKIMSign(ctx, log, m.From, true, bufUTF8)
+			bufUTF8DKIM, err := beacon.DKIMSign(ctx, log, m.From, true, bufUTF8)
 			log.Check(err, "dkim signing dsn with utf8")
 			bufUTF8 = append([]byte(bufUTF8DKIM), bufUTF8...)
 		}

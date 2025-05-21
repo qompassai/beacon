@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/store"
 )
 
 // Fuzz the server. For each fuzz string, we set up servers in various connection states, and write the string as command.
@@ -21,7 +21,7 @@ func FuzzServer(f *testing.F) {
 	f.Add("EHLO remote")
 	f.Add("AUTH PLAIN")
 	f.Add("MAIL FROM:<remote@remote>")
-	f.Add("RCPT TO:<local@mox.example>")
+	f.Add("RCPT TO:<local@beacon.example>")
 	f.Add("DATA")
 	f.Add(".")
 	f.Add("RSET")
@@ -32,10 +32,10 @@ func FuzzServer(f *testing.F) {
 	f.Add("QUIT")
 
 	log := mlog.New("smtpserver", nil)
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/smtpserverfuzz/mox.conf")
-	mox.MustLoadConfig(true, false)
-	dataDir := mox.ConfigDirPath(mox.Conf.Static.DataDir)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/smtpserverfuzz/beacon.conf")
+	beacon.MustLoadConfig(true, false)
+	dataDir := beacon.ConfigDirPath(beacon.Conf.Static.DataDir)
 	os.RemoveAll(dataDir)
 	acc, err := store.OpenAccount(log, "mjl")
 	if err != nil {
@@ -102,14 +102,14 @@ func FuzzServer(f *testing.F) {
 			const submission = false
 			err := serverConn.SetDeadline(time.Now().Add(time.Second))
 			flog(err, "set server deadline")
-			serve("test", cid, dns.Domain{ASCII: "mox.example"}, nil, serverConn, resolver, submission, false, 100<<10, false, false, false, nil, 0)
+			serve("test", cid, dns.Domain{ASCII: "beacon.example"}, nil, serverConn, resolver, submission, false, 100<<10, false, false, false, nil, 0)
 			cid++
 		}
 
 		run([]string{})
 		run([]string{"EHLO remote"})
 		run([]string{"EHLO remote", "MAIL FROM:<remote@example.org>"})
-		run([]string{"EHLO remote", "MAIL FROM:<remote@example.org>", "RCPT TO:<mjl@mox.example>"})
+		run([]string{"EHLO remote", "MAIL FROM:<remote@example.org>", "RCPT TO:<mjl@beacon.example>"})
 		// todo: submission with login
 	})
 }

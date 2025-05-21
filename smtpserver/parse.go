@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/smtp"
 )
 
 // Parser holds the original string and string with ascii a-z upper-cased for easy
@@ -308,7 +308,7 @@ func (p *parser) xipdomain(isehlo bool) dns.IPDomain {
 			// Mail user agents that submit are relatively likely to use IPs in EHLO and forget
 			// that an IPv6 address needs to be tagged as such. We can forgive them. For
 			// SMTP servers we are strict.
-			return isehlo && p.conn.submission && !mox.Pedantic && ip.To16() != nil
+			return isehlo && p.conn.submission && !beacon.Pedantic && ip.To16() != nil
 		}
 		if ipv6 && isv4 {
 			p.xerrorf("ip address is not ipv6")
@@ -337,7 +337,7 @@ func (p *parser) xlocalpart() smtp.Localpart {
 		}
 	}
 	// In the wild, some services use large localparts for generated (bounce) addresses.
-	if mox.Pedantic && len(s) > 64 || len(s) > 128 {
+	if beacon.Pedantic && len(s) > 64 || len(s) > 128 {
 		// ../rfc/5321:3486
 		p.xerrorf("localpart longer than 64 octets")
 	}

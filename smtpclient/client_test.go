@@ -23,11 +23,11 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/scram"
-	"github.com/mjl-/mox/smtp"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/scram"
+	"github.com/qompassai/beacon/smtp"
 )
 
 var zerohost dns.Domain
@@ -120,7 +120,7 @@ func TestClient(t *testing.T) {
 			hello = func() {
 				if !ehlo {
 					readline("HELO")
-					writeline("250 mox.example")
+					writeline("250 beacon.example")
 					return
 				}
 
@@ -134,7 +134,7 @@ func TestClient(t *testing.T) {
 					return
 				}
 
-				writeline("250-mox.example")
+				writeline("250-beacon.example")
 				if opts.pipelining {
 					writeline("250-PIPELINING")
 				}
@@ -162,7 +162,7 @@ func TestClient(t *testing.T) {
 				writeline("250 UNKNOWN") // To be ignored.
 			}
 
-			writeline("220 mox.example ESMTP test")
+			writeline("220 beacon.example ESMTP test")
 
 			hello()
 
@@ -306,7 +306,7 @@ func TestClient(t *testing.T) {
 				result <- nil
 				return
 			}
-			err = client.Deliver(ctx, "postmaster@mox.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), opts.need8bitmime, opts.needsmtputf8, opts.needsrequiretls)
+			err = client.Deliver(ctx, "postmaster@beacon.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), opts.need8bitmime, opts.needsmtputf8, opts.needsrequiretls)
 			if (err == nil) != (expDeliverErr == nil) || err != nil && !errors.Is(err, expDeliverErr) {
 				fail("first deliver: got err %v, expected %v", err, expDeliverErr)
 			}
@@ -315,7 +315,7 @@ func TestClient(t *testing.T) {
 				if err != nil {
 					fail("reset: %v", err)
 				}
-				err = client.Deliver(ctx, "postmaster@mox.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), opts.need8bitmime, opts.needsmtputf8, opts.needsrequiretls)
+				err = client.Deliver(ctx, "postmaster@beacon.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), opts.need8bitmime, opts.needsmtputf8, opts.needsrequiretls)
 				if (err == nil) != (expDeliverErr == nil) || err != nil && !errors.Is(err, expDeliverErr) {
 					fail("second deliver: got err %v, expected %v", err, expDeliverErr)
 				}
@@ -339,8 +339,8 @@ func TestClient(t *testing.T) {
 		}
 	}
 
-	msg := strings.ReplaceAll(`From: <postmaster@mox.example>
-To: <mjl@mox.example>
+	msg := strings.ReplaceAll(`From: <postmaster@beacon.example>
+To: <mjl@beacon.example>
 Subject: test
 
 test
@@ -359,7 +359,7 @@ test
 		tlsMode:         TLSRequiredStartTLS,
 		tlsPKIX:         true,
 		roots:           roots,
-		tlsHostname:     dns.Domain{ASCII: "mox.example"},
+		tlsHostname:     dns.Domain{ASCII: "beacon.example"},
 		need8bitmime:    true,
 		needsmtputf8:    true,
 		needsrequiretls: true,
@@ -464,7 +464,7 @@ func TestErrors(t *testing.T) {
 
 	// Server has invalid code in greeting.
 	run(t, func(s xserver) {
-		s.writeline("2200 mox.example") // Invalid, too many digits.
+		s.writeline("2200 beacon.example") // Invalid, too many digits.
 	}, func(conn net.Conn) {
 		_, err := New(ctx, log.Logger, conn, TLSOpportunistic, false, localhost, zerohost, Opts{})
 		var xerr Error
@@ -475,9 +475,9 @@ func TestErrors(t *testing.T) {
 
 	// Server sends multiline response, but with different codes.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250-mox.example")
+		s.writeline("250-beacon.example")
 		s.writeline("500 different code") // Invalid.
 	}, func(conn net.Conn) {
 		_, err := New(ctx, log.Logger, conn, TLSOpportunistic, false, localhost, zerohost, Opts{})
@@ -489,9 +489,9 @@ func TestErrors(t *testing.T) {
 
 	// Server permanently refuses MAIL FROM.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250-mox.example")
+		s.writeline("250-beacon.example")
 		s.writeline("250 ENHANCEDSTATUSCODES")
 		s.readline("MAIL FROM:")
 		s.writeline("550 5.7.0 not allowed")
@@ -501,7 +501,7 @@ func TestErrors(t *testing.T) {
 			panic(err)
 		}
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || !xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with Permanent", err))
@@ -510,9 +510,9 @@ func TestErrors(t *testing.T) {
 
 	// Server temporarily refuses MAIL FROM.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250 mox.example")
+		s.writeline("250 beacon.example")
 		s.readline("MAIL FROM:")
 		s.writeline("451 bad sender")
 	}, func(conn net.Conn) {
@@ -521,7 +521,7 @@ func TestErrors(t *testing.T) {
 			panic(err)
 		}
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with not-Permanent", err))
@@ -530,9 +530,9 @@ func TestErrors(t *testing.T) {
 
 	// Server temporarily refuses RCPT TO.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250 mox.example")
+		s.writeline("250 beacon.example")
 		s.readline("MAIL FROM:")
 		s.writeline("250 ok")
 		s.readline("RCPT TO:")
@@ -543,7 +543,7 @@ func TestErrors(t *testing.T) {
 			panic(err)
 		}
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with not-Permanent", err))
@@ -552,9 +552,9 @@ func TestErrors(t *testing.T) {
 
 	// Server permanently refuses DATA.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250 mox.example")
+		s.writeline("250 beacon.example")
 		s.readline("MAIL FROM:")
 		s.writeline("250 ok")
 		s.readline("RCPT TO:")
@@ -567,7 +567,7 @@ func TestErrors(t *testing.T) {
 			panic(err)
 		}
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || !xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with Permanent", err))
@@ -576,13 +576,13 @@ func TestErrors(t *testing.T) {
 
 	// TLS is required, so we attempt it regardless of whether it is advertised.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250 mox.example")
+		s.writeline("250 beacon.example")
 		s.readline("STARTTLS")
 		s.writeline("502 command not implemented")
 	}, func(conn net.Conn) {
-		_, err := New(ctx, log.Logger, conn, TLSRequiredStartTLS, true, localhost, dns.Domain{ASCII: "mox.example"}, Opts{})
+		_, err := New(ctx, log.Logger, conn, TLSRequiredStartTLS, true, localhost, dns.Domain{ASCII: "beacon.example"}, Opts{})
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrTLS) || !errors.As(err, &xerr) || !xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrTLS with Permanent", err))
@@ -591,19 +591,19 @@ func TestErrors(t *testing.T) {
 
 	// If TLS is available, but we don't want to use it, client should skip it.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250-mox.example")
+		s.writeline("250-beacon.example")
 		s.writeline("250 STARTTLS")
 		s.readline("MAIL FROM:")
 		s.writeline("451 enough")
 	}, func(conn net.Conn) {
-		c, err := New(ctx, log.Logger, conn, TLSSkip, false, localhost, dns.Domain{ASCII: "mox.example"}, Opts{})
+		c, err := New(ctx, log.Logger, conn, TLSSkip, false, localhost, dns.Domain{ASCII: "beacon.example"}, Opts{})
 		if err != nil {
 			panic(err)
 		}
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with non-Permanent", err))
@@ -612,9 +612,9 @@ func TestErrors(t *testing.T) {
 
 	// A transaction is aborted. If we try another one, we should send a RSET.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250 mox.example")
+		s.writeline("250 beacon.example")
 		s.readline("MAIL FROM:")
 		s.writeline("250 ok")
 		s.readline("RCPT TO:")
@@ -634,14 +634,14 @@ func TestErrors(t *testing.T) {
 		}
 
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with non-Permanent", err))
 		}
 
 		// Another delivery.
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || !xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with Permanent", err))
 		}
@@ -651,9 +651,9 @@ func TestErrors(t *testing.T) {
 	// connection. Should result in permanent error, not temporary read error.
 	// E.g. outlook.com that has your IP blocklisted.
 	run(t, func(s xserver) {
-		s.writeline("220 mox.example")
+		s.writeline("220 beacon.example")
 		s.readline("EHLO")
-		s.writeline("250-mox.example")
+		s.writeline("250-beacon.example")
 		s.writeline("250 PIPELINING")
 		s.readline("MAIL FROM:")
 		s.writeline("550 ok")
@@ -664,7 +664,7 @@ func TestErrors(t *testing.T) {
 		}
 
 		msg := ""
-		err = c.Deliver(ctx, "postmaster@other.example", "mjl@mox.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
+		err = c.Deliver(ctx, "postmaster@other.example", "mjl@beacon.example", int64(len(msg)), strings.NewReader(msg), false, false, false)
 		var xerr Error
 		if err == nil || !errors.Is(err, ErrStatus) || !errors.As(err, &xerr) || !xerr.Permanent {
 			panic(fmt.Errorf("got %#v, expected ErrStatus with Permanent", err))
@@ -755,7 +755,7 @@ func fakeCert(t *testing.T, expired bool) tls.Certificate {
 	privKey := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize)) // Fake key, don't use this for real!
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1), // Required field...
-		DNSNames:     []string{"mox.example"},
+		DNSNames:     []string{"beacon.example"},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     notAfter,
 	}

@@ -1,30 +1,54 @@
-FROM golang:1-alpine AS build
+# ~/.GH/Qompass/Go/beacon/Dockerfile
+# -----------------------------------
+# Copyright (C) 2025 Qompass AI, All rights reserved
+
+FROM nixos/nix:25.05 AS builder
+ARG UID=1000
+ARG GID=1000
+RUN addgroup -g $GID qai && \
+    adduser -D -u $UID -G qai beacon
+
 WORKDIR /build
-COPY . .
-RUN GOPROXY=off CGO_ENABLED=0 go build -trimpath
+RUN chown beacon:qai /build
+USER beacon
 
-# Using latest may break at some point, but will hopefully be convenient most of the time.
-FROM alpine:latest
-WORKDIR /mox
-COPY --from=build /build/mox /bin/mox
+COPY --chown=beacon:qai default.nix .
 
-RUN apk add --no-cache tzdata
+RUN nix-build -E 'with import <nixpkgs> {}; callPackage ./default.nix {}'
 
-# SMTP for incoming message delivery.
-EXPOSE 25/tcp
-# SMTP/submission with TLS.
-EXPOSE 465/tcp
-# SMTP/submission without initial TLS.
-EXPOSE 587/tcp
-# HTTP for internal account and admin pages.
-EXPOSE 80/tcp
-# HTTPS for ACME (Let's Encrypt), MTA-STS and autoconfig.
-EXPOSE 443/tcp
-# IMAP with TLS.
-EXPOSE 993/tcp
-# IMAP without initial TLS.
-EXPOSE 143/tcp
-# Prometheus metrics.
-EXPOSE 8010/tcp
+COPY --chown=beacon:qai . .
 
-CMD ["/bin/mox", "serve"]
+RUN nix-build
+
+FROM nixos/nix:25.05-minimal
+
+ARG UID=1000
+ARG GID=1000
+
+RUN addgroup -g $GID qai && \
+    adduser -D -u $UID -G qai beacon
+
+WORKDIR /beacon
+RUN chown beacon:qai /beacon
+
+COPY --from=builder --chown=beacon:qai /build/result/bin/beacon /bin/beacon
+
+USER root
+RUN nix-env -iA \
+    nixpkgs.glibcLocales \
+    nixpkgs.tzdata && \
+    chmod 755 /bin/beacon
+
+USER beacon
+
+ENV TZDIR="/etc/zoneinfo" \
+    XDG_CACHE_HOME="/beacon/.cache" \
+    XDG_CONFIG_HOME="/beacon/.config"
+
+EXPOSE 8025/tcp
+EXPOSE 8080/tcp
+EXPOSE 8443/tcp
+EXPOSE 9093/tcp
+
+CMD ["/bin/beacon", "serve"]
+

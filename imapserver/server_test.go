@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/imapclient"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/imapclient"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/store"
 )
 
 var ctxbg = context.Background()
@@ -127,8 +127,8 @@ Isn't it
 --unique-boundary-1
 Content-Type: message/rfc822
 
-From: info@mox.example
-To: mox <info@mox.example>
+From: info@beacon.example
+To: beacon <info@beacon.example>
 Subject: (subject in US-ASCII)
 Content-Type: Text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: Quoted-printable
@@ -340,9 +340,9 @@ func startArgs(t *testing.T, first, isTLS, allowLoginWithoutTLS, setPassword boo
 	if first {
 		os.RemoveAll("../testdata/imap/data")
 	}
-	mox.Context = ctxbg
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/imap/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.Context = ctxbg
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/imap/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	acc, err := store.OpenAccount(pkglog, accname)
 	tcheck(t, err, "open account")
 	if setPassword {
@@ -404,21 +404,21 @@ func TestLogin(t *testing.T) {
 
 	tc.transactf("bad", "login too many args")
 	tc.transactf("bad", "login") // no args
-	tc.transactf("no", "login mjl@mox.example badpass")
+	tc.transactf("no", "login mjl@beacon.example badpass")
 	tc.transactf("no", "login mjl testtest") // must use email, not account
-	tc.transactf("no", "login mjl@mox.example test")
-	tc.transactf("no", "login mjl@mox.example testtesttest")
-	tc.transactf("no", `login "mjl@mox.example" "testtesttest"`)
-	tc.transactf("no", "login \"m\xf8x@mox.example\" \"testtesttest\"")
-	tc.transactf("ok", "login mjl@mox.example testtest")
+	tc.transactf("no", "login mjl@beacon.example test")
+	tc.transactf("no", "login mjl@beacon.example testtesttest")
+	tc.transactf("no", `login "mjl@beacon.example" "testtesttest"`)
+	tc.transactf("no", "login \"m\xf8x@beacon.example\" \"testtesttest\"")
+	tc.transactf("ok", "login mjl@beacon.example testtest")
 	tc.close()
 
 	tc = start(t)
-	tc.transactf("ok", `login "mjl@mox.example" "testtest"`)
+	tc.transactf("ok", `login "mjl@beacon.example" "testtest"`)
 	tc.close()
 
 	tc = start(t)
-	tc.transactf("ok", `login "\"\"@mox.example" "testtest"`)
+	tc.transactf("ok", `login "\"\"@beacon.example" "testtest"`)
 	defer tc.close()
 
 	tc.transactf("bad", "logout badarg")
@@ -447,7 +447,7 @@ func TestState(t *testing.T) {
 	}
 
 	// Some commands not allowed when authenticated.
-	tc.transactf("ok", "login mjl@mox.example testtest")
+	tc.transactf("ok", "login mjl@beacon.example testtest")
 	for _, cmd := range append(append([]string{}, notAuthenticated...), selected...) {
 		tc.transactf("no", "%s", cmd)
 	}
@@ -472,7 +472,7 @@ func TestLiterals(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
 
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Create("tmpbox")
 
 	tc.transactf("ok", "rename {6+}\r\ntmpbox {7+}\r\nntmpbox")
@@ -495,7 +495,7 @@ func TestLiterals(t *testing.T) {
 func TestScenario(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.transactf("ok", "login mjl@mox.example testtest")
+	tc.transactf("ok", "login mjl@beacon.example testtest")
 
 	tc.transactf("bad", " missingcommand")
 
@@ -573,7 +573,7 @@ func TestScenario(t *testing.T) {
 func TestMailbox(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 
 	invalid := []string{
 		"e\u0301", // é but as e + acute, not unicode-normalized
@@ -595,11 +595,11 @@ func TestMailbox(t *testing.T) {
 func TestMailboxDeleted(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 
 	tc.client.Create("testbox")
 	tc2.client.Select("testbox")
@@ -631,21 +631,21 @@ func TestMailboxDeleted(t *testing.T) {
 func TestID(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 
 	tc.transactf("ok", "id nil")
-	tc.xuntagged(imapclient.UntaggedID{"name": "mox", "version": moxvar.Version})
+	tc.xuntagged(imapclient.UntaggedID{"name": "beacon", "version": beaconvar.Version})
 
-	tc.transactf("ok", `id ("name" "mox" "version" "1.2.3" "other" "test" "test" nil)`)
-	tc.xuntagged(imapclient.UntaggedID{"name": "mox", "version": moxvar.Version})
+	tc.transactf("ok", `id ("name" "beacon" "version" "1.2.3" "other" "test" "test" nil)`)
+	tc.xuntagged(imapclient.UntaggedID{"name": "beacon", "version": beaconvar.Version})
 
-	tc.transactf("bad", `id ("name" "mox" "name" "mox")`) // Duplicate field.
+	tc.transactf("bad", `id ("name" "beacon" "name" "beacon")`) // Duplicate field.
 }
 
 func TestSequence(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Select("inbox")
 
 	tc.transactf("bad", "fetch * all") // ../rfc/9051:7018
@@ -673,13 +673,13 @@ func TestSequence(t *testing.T) {
 func DisabledTestReference(t *testing.T) {
 	tc := start(t)
 	defer tc.close()
-	tc.client.Login("mjl@mox.example", "testtest")
+	tc.client.Login("mjl@beacon.example", "testtest")
 	tc.client.Select("inbox")
 	tc.client.Append("inbox", nil, nil, []byte(exampleMsg))
 
 	tc2 := startNoSwitchboard(t)
 	defer tc2.close()
-	tc2.client.Login("mjl@mox.example", "testtest")
+	tc2.client.Login("mjl@beacon.example", "testtest")
 	tc2.client.Select("inbox")
 
 	tc.client.StoreFlagsSet("1", true, `\Deleted`)
@@ -687,7 +687,7 @@ func DisabledTestReference(t *testing.T) {
 
 	tc3 := startNoSwitchboard(t)
 	defer tc3.close()
-	tc3.client.Login("mjl@mox.example", "testtest")
+	tc3.client.Login("mjl@beacon.example", "testtest")
 	tc3.transactf("ok", `list "" "inbox" return (status (messages))`)
 	tc3.xuntagged(imapclient.UntaggedList{Separator: '/', Mailbox: "Inbox"}, imapclient.UntaggedStatus{Mailbox: "Inbox", Attrs: map[string]int64{"MESSAGES": 0}})
 

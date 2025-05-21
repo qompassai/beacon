@@ -53,7 +53,7 @@ const (
 //
 // Example:
 //
-//	v=DMARC1; p=reject; rua=mailto:postmaster@mox.example
+//	v=DMARC1; p=reject; rua=mailto:postmaster@beacon.example
 type Record struct {
 	Version                    string      // "v=DMARC1", fixed.
 	Policy                     DMARCPolicy // Required, for "p=".

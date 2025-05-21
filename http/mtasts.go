@@ -8,10 +8,10 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/mtasts"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/mtasts"
 )
 
 func mtastsPolicyHandle(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func mtastsPolicyHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conf, _ := mox.Conf.Domain(domain)
+	conf, _ := beacon.Conf.Domain(domain)
 	sts := conf.MTASTS
 	if sts == nil {
 		http.NotFound(w, r)
@@ -61,7 +61,7 @@ func mtastsPolicyHandle(w http.ResponseWriter, r *http.Request) {
 		mxs = append(mxs, mx)
 	}
 	if len(mxs) == 0 {
-		mxs = []mtasts.STSMX{{Domain: mox.Conf.Static.HostnameDomain}}
+		mxs = []mtasts.STSMX{{Domain: beacon.Conf.Static.HostnameDomain}}
 	}
 
 	policy := mtasts.Policy{

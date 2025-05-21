@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/mlog"
 )
 
 var pkglog = mlog.New("dmarcrpt", nil)
@@ -145,15 +145,15 @@ func TestParseMessageReport(t *testing.T) {
 	}
 
 	// No report in a non-multipart message.
-	_, err = ParseMessageReport(pkglog.Logger, strings.NewReader("From: <mjl@mox.example>\r\n\r\nNo report.\r\n"))
+	_, err = ParseMessageReport(pkglog.Logger, strings.NewReader("From: <mjl@beacon.example>\r\n\r\nNo report.\r\n"))
 	if err != ErrNoReport {
 		t.Fatalf("message without report, got err %#v, expected ErrNoreport", err)
 	}
 
 	// No report in a multipart message.
-	var multipartNoreport = strings.ReplaceAll(`From: <mjl@mox.example>
-To: <mjl@mox.example>
-Subject: Report Domain: mox.example Submitter: mail.mox.example
+	var multipartNoreport = strings.ReplaceAll(`From: <mjl@beacon.example>
+To: <mjl@beacon.example>
+Subject: Report Domain: beacon.example Submitter: mail.beacon.example
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="===============5735553800636657282=="
 

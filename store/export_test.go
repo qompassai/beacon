@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 func TestExport(t *testing.T) {
@@ -20,8 +20,8 @@ func TestExport(t *testing.T) {
 	// and maildir/mbox. check there are 2 files in the repo, no errors.txt.
 
 	os.RemoveAll("../testdata/store/data")
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/store/mox.conf")
-	mox.MustLoadConfig(true, false)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/store/beacon.conf")
+	beacon.MustLoadConfig(true, false)
 	acc, err := OpenAccount(pkglog, "mjl")
 	tcheck(t, err, "open account")
 	defer acc.Close()
@@ -29,7 +29,7 @@ func TestExport(t *testing.T) {
 
 	log := mlog.New("export", nil)
 
-	msgFile, err := CreateMessageTemp(pkglog, "mox-test-export")
+	msgFile, err := CreateMessageTemp(pkglog, "beacon-test-export")
 	tcheck(t, err, "create temp")
 	defer os.Remove(msgFile.Name()) // To be sure.
 	defer msgFile.Close()

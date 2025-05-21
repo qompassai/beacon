@@ -30,32 +30,32 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dkim"
-	"github.com/mjl-/mox/dmarc"
-	"github.com/mjl-/mox/dmarcrpt"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/publicsuffix"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dkim"
+	"github.com/qompassai/beacon/dmarc"
+	"github.com/qompassai/beacon/dmarcrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/publicsuffix"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
 var (
 	metricReport = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_dmarcdb_report_queued_total",
+			Name: "beacon_dmarcdb_report_queued_total",
 			Help: "Total messages with DMARC aggregate/error reports queued.",
 		},
 	)
 	metricReportError = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_dmarcdb_report_error_total",
+			Name: "beacon_dmarcdb_report_error_total",
 			Help: "Total errors while composing or queueing DMARC aggregate/error reports.",
 		},
 	)
@@ -166,7 +166,7 @@ func evalDB(ctx context.Context) (rdb *bstore.DB, rerr error) {
 	evalMutex.Lock()
 	defer evalMutex.Unlock()
 	if EvalDB == nil {
-		p := mox.DataDirPath("dmarceval.db")
+		p := beacon.DataDirPath("dmarceval.db")
 		os.MkdirAll(filepath.Dir(p), 0770)
 		db, err := bstore.Open(ctx, p, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, EvalDBTypes...)
 		if err != nil {
@@ -288,7 +288,7 @@ func RemoveEvaluationsDomain(ctx context.Context, domain dns.Domain) error {
 	return err
 }
 
-var jitterRand = mox.NewPseudoRand()
+var jitterRand = beacon.NewPseudoRand()
 
 // time to sleep until next whole hour t, replaced by tests.
 // Jitter so we don't cause load at exactly whole hours, other processes may
@@ -316,7 +316,7 @@ func Start(resolver dns.Resolver) {
 		timer := time.NewTimer(time.Hour)
 		defer timer.Stop()
 
-		ctx := mox.Shutdown
+		ctx := beacon.Shutdown
 
 		db, err := evalDB(ctx)
 		if err != nil {
@@ -358,7 +358,7 @@ func Start(resolver dns.Resolver) {
 			_, err := bstore.QueryDB[Evaluation](ctx, db).FilterLess("Evaluated", nextEnd.Add(-48*time.Hour)).Delete()
 			log.Check(err, "removing stale dmarc evaluations from database")
 
-			clog := log.WithCid(mox.Cid())
+			clog := log.WithCid(beacon.Cid())
 			clog.Info("sending dmarc aggregate reports", slog.Time("end", nextEnd.UTC()), slog.Any("intervals", intervals))
 			if err := sendReports(ctx, clog, resolver, db, nextEnd, intervals); err != nil {
 				clog.Errorx("sending dmarc aggregate reports", err)
@@ -460,7 +460,7 @@ func sendReports(ctx context.Context, log mlog.Log, resolver dns.Resolver, db *b
 			}()
 			defer wg.Done()
 
-			rlog := log.WithCid(mox.Cid()).With(slog.Any("domain", domain))
+			rlog := log.WithCid(beacon.Cid()).With(slog.Any("domain", domain))
 			rlog.Info("sending dmarc report")
 			if _, err := sendReportDomain(ctx, rlog, resolver, db, endTime, domain); err != nil {
 				rlog.Errorx("sending dmarc aggregate report to domain", err)
@@ -552,8 +552,8 @@ func sendReportDomain(ctx context.Context, log mlog.Log, resolver dns.Resolver, 
 	report := dmarcrpt.Feedback{
 		Version: "1.0",
 		ReportMetadata: dmarcrpt.ReportMetadata{
-			OrgName: mox.Conf.Static.HostnameDomain.ASCII,
-			Email:   "postmaster@" + mox.Conf.Static.HostnameDomain.ASCII,
+			OrgName: beacon.Conf.Static.HostnameDomain.ASCII,
+			Email:   "postmaster@" + beacon.Conf.Static.HostnameDomain.ASCII,
 			// ReportID and DateRange are set after we've seen evaluations.
 			// Errors is filled below when we encounter problems.
 		},
@@ -724,7 +724,7 @@ func sendReportDomain(ctx context.Context, log mlog.Log, resolver dns.Resolver, 
 	// domain. We also add a truly unique id based on first evaluation id used without
 	// revealing the number of evaluations we have. Reuse of ReceivedID is not great,
 	// but shouldn't hurt.
-	report.ReportMetadata.ReportID = endTime.UTC().Format("20060102.15") + "." + mox.ReceivedID(first.ID)
+	report.ReportMetadata.ReportID = endTime.UTC().Format("20060102.15") + "." + beacon.ReceivedID(first.ID)
 
 	// We may include errors we encountered when composing the report. We
 	// don't currently include errors about dmarc evaluations, e.g. DNS
@@ -779,10 +779,10 @@ func sendReportDomain(ctx context.Context, log mlog.Log, resolver dns.Resolver, 
 	// DKIM keys, so we can DKIM-sign our reports. SPF should pass anyway.
 	// A single report can contain deliveries from a single policy domain
 	// to multiple of our configured domains.
-	from := smtp.Address{Localpart: "postmaster", Domain: mox.Conf.Static.HostnameDomain}
+	from := smtp.Address{Localpart: "postmaster", Domain: beacon.Conf.Static.HostnameDomain}
 
 	// Subject follows the form in RFC. ../rfc/7489:1871
-	subject := fmt.Sprintf("Report Domain: %s Submitter: %s Report-ID: <%s>", dom.ASCII, mox.Conf.Static.HostnameDomain.ASCII, report.ReportMetadata.ReportID)
+	subject := fmt.Sprintf("Report Domain: %s Submitter: %s Report-ID: <%s>", dom.ASCII, beacon.Conf.Static.HostnameDomain.ASCII, report.ReportMetadata.ReportID)
 
 	// Human-readable part for convenience. ../rfc/7489:1803
 	text := fmt.Sprintf(`Attached is an aggregate DMARC report with results of evaluations of the DMARC
@@ -794,10 +794,10 @@ Report domain: %s
 Submitter: %s
 Report-ID: %s
 Period: %s - %s UTC
-`, dom, mox.Conf.Static.HostnameDomain, report.ReportMetadata.ReportID, beginTime.UTC().Format(time.DateTime), endTime.UTC().Format(time.DateTime))
+`, dom, beacon.Conf.Static.HostnameDomain, report.ReportMetadata.ReportID, beginTime.UTC().Format(time.DateTime), endTime.UTC().Format(time.DateTime))
 
 	// The attached file follows the naming convention from the RFC. ../rfc/7489:1812
-	reportFilename := fmt.Sprintf("%s!%s!%d!%d.xml.gz", mox.Conf.Static.HostnameDomain.ASCII, dom.ASCII, beginTime.Unix(), endTime.Add(-time.Second).Unix())
+	reportFilename := fmt.Sprintf("%s!%s!%d!%d.xml.gz", beacon.Conf.Static.HostnameDomain.ASCII, dom.ASCII, beginTime.Unix(), endTime.Add(-time.Second).Unix())
 
 	var addrs []message.NameAddress
 	for _, rcpt := range recipients {
@@ -842,7 +842,7 @@ Period: %s - %s UTC
 			continue
 		}
 
-		qm := queue.MakeMsg(mox.Conf.Static.Postmaster.Account, from.Path(), rcpt.address.Path(), has8bit, smtputf8, msgSize, messageID, []byte(msgPrefix), nil)
+		qm := queue.MakeMsg(beacon.Conf.Static.Postmaster.Account, from.Path(), rcpt.address.Path(), has8bit, smtputf8, msgSize, messageID, []byte(msgPrefix), nil)
 		// Don't try as long as regular deliveries, and stop before we would send the
 		// delayed DSN. Though we also won't send that due to IsDMARCReport.
 		qm.MaxAttempts = 5
@@ -899,10 +899,10 @@ func composeAggregateReport(ctx context.Context, log mlog.Log, mf *os.File, from
 	xc.HeaderAddrs("From", []message.NameAddress{{Address: fromAddr}})
 	xc.HeaderAddrs("To", recipients)
 	xc.Subject(subject)
-	messageID = fmt.Sprintf("<%s>", mox.MessageIDGen(xc.SMTPUTF8))
+	messageID = fmt.Sprintf("<%s>", beacon.MessageIDGen(xc.SMTPUTF8))
 	xc.Header("Message-Id", messageID)
 	xc.Header("Date", time.Now().Format(message.RFC5322Z))
-	xc.Header("User-Agent", "mox/"+moxvar.Version)
+	xc.Header("User-Agent", "beacon/"+beaconvar.Version)
 	xc.Header("MIME-Version", "1.0")
 
 	// Multipart message, with a text/plain and the report attached.
@@ -928,8 +928,8 @@ func composeAggregateReport(ctx context.Context, log mlog.Log, mf *os.File, from
 	ahdr.Set("Content-Disposition", cd)
 	ap, err := mp.CreatePart(ahdr)
 	xc.Checkf(err, "adding dmarc aggregate report to message")
-	wc := moxio.Base64Writer(ap)
-	_, err = io.Copy(wc, &moxio.AtReader{R: reportXMLGzipFile})
+	wc := beaconio.Base64Writer(ap)
+	_, err = io.Copy(wc, &beaconio.AtReader{R: reportXMLGzipFile})
 	xc.Checkf(err, "adding attachment")
 	err = wc.Close()
 	xc.Checkf(err, "flushing attachment")
@@ -969,7 +969,7 @@ Report-ID: %s
 Report-Size: %d
 Submitter: %s
 Submitting-URI: %s
-`, time.Now().Format(message.RFC5322Z), reportDomain.ASCII, reportID, reportMsgSize, mox.Conf.Static.HostnameDomain.ASCII, strings.Join(recipientStrs, ","))
+`, time.Now().Format(message.RFC5322Z), reportDomain.ASCII, reportID, reportMsgSize, beacon.Conf.Static.HostnameDomain.ASCII, strings.Join(recipientStrs, ","))
 	text = strings.ReplaceAll(text, "\n", "\r\n")
 
 	msgPrefix, has8bit, smtputf8, messageID, err := composeErrorReport(ctx, log, msgf, fromAddr, recipients, subject, text)
@@ -997,7 +997,7 @@ Submitting-URI: %s
 			continue
 		}
 
-		qm := queue.MakeMsg(mox.Conf.Static.Postmaster.Account, fromAddr.Path(), rcpt.Address.Path(), has8bit, smtputf8, msgSize, messageID, []byte(msgPrefix), nil)
+		qm := queue.MakeMsg(beacon.Conf.Static.Postmaster.Account, fromAddr.Path(), rcpt.Address.Path(), has8bit, smtputf8, msgSize, messageID, []byte(msgPrefix), nil)
 		// Don't try as long as regular deliveries, and stop before we would send the
 		// delayed DSN. Though we also won't send that due to IsDMARCReport.
 		qm.MaxAttempts = 5
@@ -1039,10 +1039,10 @@ func composeErrorReport(ctx context.Context, log mlog.Log, mf *os.File, fromAddr
 	xc.HeaderAddrs("From", []message.NameAddress{{Address: fromAddr}})
 	xc.HeaderAddrs("To", recipients)
 	xc.Header("Subject", subject)
-	messageID = fmt.Sprintf("<%s>", mox.MessageIDGen(xc.SMTPUTF8))
+	messageID = fmt.Sprintf("<%s>", beacon.MessageIDGen(xc.SMTPUTF8))
 	xc.Header("Message-Id", messageID)
 	xc.Header("Date", time.Now().Format(message.RFC5322Z))
-	xc.Header("User-Agent", "mox/"+moxvar.Version)
+	xc.Header("User-Agent", "beacon/"+beaconvar.Version)
 	xc.Header("MIME-Version", "1.0")
 
 	textBody, ct, cte := xc.TextPart(text)
@@ -1067,8 +1067,8 @@ func dkimSign(ctx context.Context, log mlog.Log, fromAddr smtp.Address, smtputf8
 	fd := fromAddr.Domain
 	var zerodom dns.Domain
 	for fd != zerodom {
-		confDom, ok := mox.Conf.Domain(fd)
-		selectors := mox.DKIMSelectors(confDom.DKIM)
+		confDom, ok := beacon.Conf.Domain(fd)
+		selectors := beacon.DKIMSelectors(confDom.DKIM)
 		if len(selectors) > 0 {
 			dkimHeaders, err := dkim.Sign(ctx, log.Logger, fromAddr.Localpart, fd, selectors, smtputf8, mf)
 			if err != nil {

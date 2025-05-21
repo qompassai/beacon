@@ -12,10 +12,10 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/store"
 )
 
 // rejectPresent returns whether the message is already present in the rejects mailbox.
@@ -33,7 +33,7 @@ func rejectPresent(log mlog.Log, acc *store.Account, rejectsMailbox string, m *s
 
 	// We must not read MsgPrefix, it will likely change for subsequent deliveries.
 	h := sha256.New()
-	if _, err := io.Copy(h, &moxio.AtReader{R: f}); err != nil {
+	if _, err := io.Copy(h, &beaconio.AtReader{R: f}); err != nil {
 		log.Infox("copying reject message to hash", err)
 	} else {
 		hash = h.Sum(nil)

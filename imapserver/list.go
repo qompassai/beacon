@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/mjl-/bstore"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/store"
 )
 
 // LIST command, for listing mailboxes with various attributes, including about subscriptions and children.

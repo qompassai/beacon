@@ -10,9 +10,9 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/sasl"
-	"github.com/mjl-/mox/smtpclient"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/sasl"
+	"github.com/qompassai/beacon/smtpclient"
 )
 
 func ExampleClient() {

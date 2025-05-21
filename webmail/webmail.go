@@ -32,13 +32,13 @@ import (
 	"github.com/mjl-/bstore"
 	"github.com/mjl-/sherpa"
 
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/webauth"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/webauth"
 )
 
 var pkglog = mlog.New("webmail", nil)
@@ -80,7 +80,7 @@ var (
 	// Similar between ../webmail/webmail.go:/metricSubmission and ../smtpserver/server.go:/metricSubmission
 	metricSubmission = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_webmail_submission_total",
+			Name: "beacon_webmail_submission_total",
 			Help: "Webmail message submission results, known values (those ending with error are server errors): ok, badfrom, messagelimiterror, recipientlimiterror, queueerror, storesenterror.",
 		},
 		[]string{
@@ -89,7 +89,7 @@ var (
 	)
 	metricServerErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mox_webmail_errors_total",
+			Name: "beacon_webmail_errors_total",
 			Help: "Webmail server errors, known values: dkimsign, submit.",
 		},
 		[]string{
@@ -98,7 +98,7 @@ var (
 	)
 	metricSSEConnections = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "mox_webmail_sse_connections",
+			Name: "beacon_webmail_sse_connections",
 			Help: "Number of active webmail SSE connections.",
 		},
 	)
@@ -144,7 +144,7 @@ func xdbread(ctx context.Context, acc *store.Account, fn func(tx *bstore.Tx)) {
 	xcheckf(ctx, err, "transaction")
 }
 
-var webmailFile = &mox.WebappFile{
+var webmailFile = &beacon.WebappFile{
 	HTML:     webmailHTML,
 	JS:       webmailJS,
 	HTMLPath: filepath.FromSlash("webmail/webmail.html"),
@@ -165,7 +165,7 @@ func serveContentFallback(log mlog.Log, w http.ResponseWriter, r *http.Request, 
 			return
 		}
 	}
-	http.ServeContent(w, r, "", mox.FallbackMtime(log), bytes.NewReader(fallback))
+	http.ServeContent(w, r, "", beacon.FallbackMtime(log), bytes.NewReader(fallback))
 }
 
 // Handler returns a handler for the webmail endpoints, customized for the max
@@ -545,7 +545,7 @@ func handle(apiHandler http.Handler, isForwarded bool, w http.ResponseWriter, r 
 		h.Set("Content-Type", mime.FormatMediaType(ct, params))
 		h.Set("Cache-Control", "no-store, max-age=0")
 
-		_, err := io.Copy(w, &moxio.AtReader{R: msgr})
+		_, err := io.Copy(w, &beaconio.AtReader{R: msgr})
 		log.Check(err, "writing raw")
 
 	case len(t) == 2 && (t[1] == "msgtext" || t[1] == "msghtml" || t[1] == "msghtmlexternal"):
@@ -750,7 +750,7 @@ func handle(apiHandler http.Handler, isForwarded bool, w http.ResponseWriter, r 
 		}
 
 		_, err := io.Copy(w, ap.Reader())
-		if err != nil && !moxio.IsClosed(err) {
+		if err != nil && !beaconio.IsClosed(err) {
 			log.Errorx("copying attachment", err)
 		}
 	default:

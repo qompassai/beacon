@@ -18,12 +18,12 @@ import (
 	"github.com/mjl-/bstore"
 
 	"github.com/qompassai/beacon/dmarcdb"
-	"github.com/mjl-/mox/junk"
-	"github.com/mjl-/mox/moxvar"
-	"github.com/mjl-/mox/mtastsdb"
-	"github.com/mjl-/mox/queue"
-	"github.com/mjl-/mox/store"
-	"github.com/mjl-/mox/tlsrptdb"
+	"github.com/qompassai/beacon/junk"
+	"github.com/qompassai/beacon/beaconvar"
+	"github.com/qompassai/beacon/mtastsdb"
+	"github.com/qompassai/beacon/queue"
+	"github.com/qompassai/beacon/store"
+	"github.com/qompassai/beacon/tlsrptdb"
 )
 
 func cmdVerifydata(c *cmd) {
@@ -40,10 +40,10 @@ Consistency of message/mailbox UID, UIDNEXT and UIDVALIDITY is verified as
 well.
 
 Because verifydata opens the database files, schema upgrades may automatically
-be applied. This can happen if you use a new mox release. It is useful to run
-"mox verifydata" with a new binary before attempting an upgrade, but only on a
-copy of the database files, as made with "mox backup". Before upgrading, make a
-new backup again since "mox verifydata" may have upgraded the database files,
+be applied. This can happen if you use a new beacon release. It is useful to run
+"beacon verifydata" with a new binary before attempting an upgrade, but only on a
+copy of the database files, as made with "beacon backup". Before upgrading, make a
+new backup again since "beacon verifydata" may have upgraded the database files,
 possibly making them potentially no longer readable by the previous version.
 `
 	var fix bool
@@ -153,7 +153,7 @@ possibly making them potentially no longer readable by the previous version.
 		checkf(err, path, "checking if file exists")
 		if !skipSizeCheck && err == nil && int64(prefixSize)+st.Size() != size {
 			filesize := st.Size()
-			checkf(fmt.Errorf("%s: message size is %d, should be %d (length of MsgPrefix %d + file size %d), see \"mox fixmsgsize\"", path, size, int64(prefixSize)+st.Size(), prefixSize, filesize), dbpath, "checking message size")
+			checkf(fmt.Errorf("%s: message size is %d, should be %d (length of MsgPrefix %d + file size %d), see \"beacon fixmsgsize\"", path, size, int64(prefixSize)+st.Size(), prefixSize, filesize), dbpath, "checking message size")
 		}
 	}
 
@@ -258,7 +258,7 @@ possibly making them potentially no longer readable by the previous version.
 				mailboxes[mb.ID] = mb
 
 				if mb.UIDValidity >= uidvalidity.Next {
-					checkf(errors.New(`inconsistent uidvalidity for mailbox/account, see "mox fixuidmeta"`), dbpath, "mailbox %q (id %d) has uidvalidity %d >= account nextuidvalidity %d", mb.Name, mb.ID, mb.UIDValidity, uidvalidity.Next)
+					checkf(errors.New(`inconsistent uidvalidity for mailbox/account, see "beacon fixuidmeta"`), dbpath, "mailbox %q (id %d) has uidvalidity %d >= account nextuidvalidity %d", mb.Name, mb.ID, mb.UIDValidity, uidvalidity.Next)
 				}
 				return nil
 			})
@@ -269,7 +269,7 @@ possibly making them potentially no longer readable by the previous version.
 			err = bstore.QueryDB[store.Message](ctxbg, db).ForEach(func(m store.Message) error {
 				mb := mailboxes[m.MailboxID]
 				if m.UID >= mb.UIDNext {
-					checkf(errors.New(`inconsistent uidnext for message/mailbox, see "mox fixuidmeta"`), dbpath, "message id %d in mailbox %q (id %d) has uid %d >= mailbox uidnext %d", m.ID, mb.Name, mb.ID, m.UID, mb.UIDNext)
+					checkf(errors.New(`inconsistent uidnext for message/mailbox, see "beacon fixuidmeta"`), dbpath, "message id %d in mailbox %q (id %d) has uid %d >= mailbox uidnext %d", m.ID, mb.Name, mb.ID, m.UID, mb.UIDNext)
 				}
 
 				if m.ModSeq < m.CreateSeq {
@@ -295,13 +295,13 @@ possibly making them potentially no longer readable by the previous version.
 				}
 
 				if m.ThreadID <= 0 {
-					checkf(errors.New(`see "mox reassignthreads"`), dbpath, "message id %d, thread %d in mailbox %q (id %d) has bad threadid", m.ID, m.ThreadID, mb.Name, mb.ID)
+					checkf(errors.New(`see "beacon reassignthreads"`), dbpath, "message id %d, thread %d in mailbox %q (id %d) has bad threadid", m.ID, m.ThreadID, mb.Name, mb.ID)
 				}
 				if len(m.ThreadParentIDs) == 0 {
 					return nil
 				}
 				if slices.Contains(m.ThreadParentIDs, m.ID) {
-					checkf(errors.New(`see "mox reassignthreads"`), dbpath, "message id %d, thread %d in mailbox %q (id %d) has itself as thread parent", m.ID, m.ThreadID, mb.Name, mb.ID)
+					checkf(errors.New(`see "beacon reassignthreads"`), dbpath, "message id %d, thread %d in mailbox %q (id %d) has itself as thread parent", m.ID, m.ThreadID, mb.Name, mb.ID)
 				}
 				for i, pid := range m.ThreadParentIDs {
 					am := store.Message{ID: pid}
@@ -310,7 +310,7 @@ possibly making them potentially no longer readable by the previous version.
 					} else if err != nil {
 						return fmt.Errorf("get ancestor message: %v", err)
 					} else if !slices.Equal(m.ThreadParentIDs[i+1:], am.ThreadParentIDs) {
-						checkf(errors.New(`see "mox reassignthreads"`), dbpath, "message %d, thread %d has ancestor ids %v, and ancestor at index %d with id %d should have the same tail but has %v", m.ID, m.ThreadID, m.ThreadParentIDs, i, am.ID, am.ThreadParentIDs)
+						checkf(errors.New(`see "beacon reassignthreads"`), dbpath, "message %d, thread %d has ancestor ids %v, and ancestor at index %d with id %d should have the same tail but has %v", m.ID, m.ThreadID, m.ThreadParentIDs, i, am.ID, am.ThreadParentIDs)
 					} else {
 						break
 					}
@@ -326,7 +326,7 @@ possibly making them potentially no longer readable by the previous version.
 					haveCounts = false
 				}
 				if mb.HaveCounts && mb.MailboxCounts != mbCounts[mb.ID] {
-					checkf(errors.New(`wrong mailbox counts, see "mox recalculatemailboxcounts"`), dbpath, "mailbox %q (id %d) has wrong counts %s, should be %s", mb.Name, mb.ID, mb.MailboxCounts, mbCounts[mb.ID])
+					checkf(errors.New(`wrong mailbox counts, see "beacon recalculatemailboxcounts"`), dbpath, "mailbox %q (id %d) has wrong counts %s, should be %s", mb.Name, mb.ID, mb.MailboxCounts, mbCounts[mb.ID])
 				}
 			}
 
@@ -335,7 +335,7 @@ possibly making them potentially no longer readable by the previous version.
 				err := db.Get(ctxbg, &du)
 				if err == nil {
 					if du.MessageSize != totalSize {
-						checkf(errors.New(`wrong total message size, see mox recalculatemailboxcounts"`), dbpath, "account has wrong total message size %d, should be %d", du.MessageSize, totalSize)
+						checkf(errors.New(`wrong total message size, see beacon recalculatemailboxcounts"`), dbpath, "account has wrong total message size %d, should be %d", du.MessageSize, totalSize)
 					}
 				} else if err != nil && !errors.Is(err, bstore.ErrAbsent) {
 					checkf(err, dbpath, "get disk usage")
@@ -405,7 +405,7 @@ possibly making them potentially no longer readable by the previous version.
 	// Check all files, skipping the known files, queue and accounts directories. Warn
 	// about unknown files. Skip a "tmp" directory. And a "moved" directory, we
 	// probably created it ourselves.
-	backupmoxversion := "(unknown)"
+	backupbeaconversion := "(unknown)"
 	checkOther := func() {
 		err := filepath.WalkDir(dataDir, func(dpath string, d fs.DirEntry, err error) error {
 			checkf(err, dpath, "walk")
@@ -424,11 +424,11 @@ possibly making them potentially no longer readable by the previous version.
 				return nil
 			case "acme", "queue", "accounts", "tmp", "moved":
 				return fs.SkipDir
-			case "moxversion":
+			case "beaconversion":
 				buf, err := os.ReadFile(dpath)
-				checkf(err, dpath, "reading moxversion")
+				checkf(err, dpath, "reading beaconversion")
 				if err == nil {
-					backupmoxversion = string(buf)
+					backupbeaconversion = string(buf)
 				}
 				return nil
 			}
@@ -447,8 +447,8 @@ possibly making them potentially no longer readable by the previous version.
 	checkAccounts()
 	checkOther()
 
-	if backupmoxversion != moxvar.Version {
-		log.Printf("NOTE: The backup was made with mox version %q, while verifydata was run with mox version %q. Database files have probably been modified by running mox verifydata. Make a fresh backup before upgrading.", backupmoxversion, moxvar.Version)
+	if backupbeaconversion != beaconvar.Version {
+		log.Printf("NOTE: The backup was made with beacon version %q, while verifydata was run with beacon version %q. Database files have probably been modified by running beacon verifydata. Make a fresh backup before upgrading.", backupbeaconversion, beaconvar.Version)
 	}
 
 	if fail {

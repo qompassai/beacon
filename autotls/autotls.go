@@ -4,7 +4,7 @@ package autotls
 
 // We do tls-alpn-01, and also http-01. For DNS we would need a third party tool
 // with an API that can make the DNS changes, as we don't want to link in dozens of
-// bespoke API's for DNS record manipulation into mox.
+// bespoke API's for DNS record manipulation into beacon.
 
 import (
 	"bytes"
@@ -36,15 +36,15 @@ import (
 
 	"github.com/mjl-/autocert"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/moxvar"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beaconvar"
 )
 
 var (
 	metricCertput = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mox_autotls_certput_total",
+			Name: "beacon_autotls_certput_total",
 			Help: "Number of certificate store puts.",
 		},
 	)
@@ -104,7 +104,7 @@ func Load(name, acmeDir, contactEmail, directoryURL string, eabKeyID string, eab
 		block := &pem.Block{
 			Type: "PRIVATE KEY",
 			Headers: map[string]string{
-				"Note": fmt.Sprintf("PEM PKCS8 ECDSA private key generated for ACME provider %s by mox", name),
+				"Note": fmt.Sprintf("PEM PKCS8 ECDSA private key generated for ACME provider %s by beacon", name),
 			},
 			Bytes: der,
 		}
@@ -144,7 +144,7 @@ func Load(name, acmeDir, contactEmail, directoryURL string, eabKeyID string, eab
 		Client: &acme.Client{
 			DirectoryURL: directoryURL,
 			Key:          key,
-			UserAgent:    "mox/" + moxvar.Version,
+			UserAgent:    "beacon/" + beaconvar.Version,
 		},
 		GetPrivateKey: getPrivateKey,
 		// HostPolicy set below.

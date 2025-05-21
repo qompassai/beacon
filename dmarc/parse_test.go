@@ -82,16 +82,16 @@ func TestParse(t *testing.T) {
 		return rr
 	}
 
-	valid("v=DMARC1; rua=mailto:mjl@mox.example", record(Record{
+	valid("v=DMARC1; rua=mailto:mjl@beacon.example", record(Record{
 		Policy: "none",
 		AggregateReportAddresses: []URI{
-			{Address: "mailto:mjl@mox.example"},
+			{Address: "mailto:mjl@beacon.example"},
 		},
 	})) // ../rfc/7489:1407
-	valid("v=DMARC1; p=reject; sp=invalid; rua=mailto:mjl@mox.example", record(Record{
+	valid("v=DMARC1; p=reject; sp=invalid; rua=mailto:mjl@beacon.example", record(Record{
 		Policy: "none",
 		AggregateReportAddresses: []URI{
-			{Address: "mailto:mjl@mox.example"},
+			{Address: "mailto:mjl@beacon.example"},
 		},
 	})) // ../rfc/7489:1407
 	valid("v=DMARC1; p=none; rua=mailto:dmarc-feedback@example.com", record(Record{

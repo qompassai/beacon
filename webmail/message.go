@@ -10,13 +10,13 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/moxio"
-	"github.com/mjl-/mox/smtp"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/beaconio"
+	"github.com/qompassai/beacon/smtp"
+	"github.com/qompassai/beacon/store"
 )
 
 // todo: we should have all needed information for messageItem in store.Message (perhaps some data in message.Part) for fast access, not having to parse the on-disk message file.
@@ -39,7 +39,7 @@ func tryDecodeParam(log mlog.Log, name string) string {
 		return name
 	}
 	// todo: find where this is allowed. it seems quite common. perhaps we should remove the pedantic check?
-	if mox.Pedantic {
+	if beacon.Pedantic {
 		log.Debug("attachment contains rfc2047 q/b-word-encoded mime parameter instead of rfc2231-encoded", slog.String("name", name))
 		return name
 	}
@@ -259,7 +259,7 @@ func parsedMessage(log mlog.Log, m store.Message, state *msgState, full, msgitem
 			}
 
 			if full {
-				buf, err := io.ReadAll(&moxio.LimitReader{R: p.ReaderUTF8OrBinary(), Limit: 2 * 1024 * 1024})
+				buf, err := io.ReadAll(&beaconio.LimitReader{R: p.ReaderUTF8OrBinary(), Limit: 2 * 1024 * 1024})
 				if err != nil {
 					rerr = fmt.Errorf("reading text part: %v", err)
 					return
@@ -295,7 +295,7 @@ func parsedMessage(log mlog.Log, m store.Message, state *msgState, full, msgitem
 				// Recognize DSNs.
 				if parentct == "MULTIPART/REPORT" && index == 1 && (mt == "MESSAGE/GLOBAL-DELIVERY-STATUS" || mt == "MESSAGE/DELIVERY-STATUS") {
 					if full {
-						buf, err := io.ReadAll(&moxio.LimitReader{R: p.ReaderUTF8OrBinary(), Limit: 1024 * 1024})
+						buf, err := io.ReadAll(&beaconio.LimitReader{R: p.ReaderUTF8OrBinary(), Limit: 1024 * 1024})
 						if err != nil {
 							rerr = fmt.Errorf("reading text part: %v", err)
 							return
@@ -306,7 +306,7 @@ func parsedMessage(log mlog.Log, m store.Message, state *msgState, full, msgitem
 				}
 				if parentct == "MULTIPART/REPORT" && index == 2 && (mt == "MESSAGE/GLOBAL-HEADERS" || mt == "TEXT/RFC822-HEADERS") {
 					if full {
-						buf, err := io.ReadAll(&moxio.LimitReader{R: p.ReaderUTF8OrBinary(), Limit: 1024 * 1024})
+						buf, err := io.ReadAll(&beaconio.LimitReader{R: p.ReaderUTF8OrBinary(), Limit: 1024 * 1024})
 						if err != nil {
 							rerr = fmt.Errorf("reading text part: %v", err)
 							return

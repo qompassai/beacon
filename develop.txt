@@ -1,4 +1,4 @@
-This file has notes useful for mox developers.
+This file has notes useful for beacon developers.
 
 # Code style, guidelines, notes
 
@@ -13,7 +13,7 @@ This file has notes useful for mox developers.
 - We don't have an internal/ directory, really just to prevent long paths in
   the repo, and to keep all Go code matching *.go */*.go (without matching
   vendor/). Part of the packages are reusable by other software. Those reusable
-  packages must not cause mox implementation details (such as bstore) to get out,
+  packages must not cause beacon implementation details (such as bstore) to get out,
   which would cause unexpected dependencies. Those packages also only expose the
   standard slog package for logging, not our mlog package. Packages not intended
   for reuse do use mlog as it is more convenient. Internally, we always use
@@ -23,7 +23,7 @@ This file has notes useful for mox developers.
 
 Most non-server Go packages are meant to be reusable. This means internal
 details are not exposed in the API, and we don't make unneeded changes. We can
-still make breaking changes when it improves mox: We don't want to be stuck
+still make breaking changes when it improves beacon: We don't want to be stuck
 with bad API. Third party users aren't affected too seriously due to Go's
 minimal version selection. The reusable packages are in apidiff/packages.txt.
 We generate the incompatible changes with each release.
@@ -57,7 +57,7 @@ managable.
 # TLS certificates
 
 https://github.com/cloudflare/cfssl is useful for testing with TLS
-certificates. Create a CA and configure it in mox.conf TLS.CA.CertFiles, and
+certificates. Create a CA and configure it in beacon.conf TLS.CA.CertFiles, and
 sign host certificates and configure them in the listeners TLS.KeyCerts.
 
 Setup a local CA with cfssl, run once:
@@ -74,7 +74,7 @@ cfssl print-defaults config > ca-config.json # defaults are fine
 # Based on: cfssl print-defaults csr > ca-csr.json
 cat <<EOF >ca-csr.json
 {
-    "CN": "mox ca",
+    "CN": "beacon ca",
     "key": {
         "algo": "ecdsa",
         "size": 256
@@ -90,7 +90,7 @@ EOF
 cfssl gencert -initca ca-csr.json | cfssljson -bare ca - # Generate ca key and cert.
 
 # Generate wildcard certificates for one or more domains, add localhost for use with pebble, see below.
-domains="moxtest.example localhost"
+domains="beacontest.example localhost"
 for domain in $domains; do
 	cat <<EOF >wildcard.$domain.csr.json
 {
@@ -100,7 +100,7 @@ for domain in $domains; do
   },
   "names": [
   {
-    "O": "mox"
+    "O": "beacon"
   }
   ],
   "hosts": [
@@ -113,14 +113,14 @@ EOF
 done
 ```
 
-Now configure mox.conf to add the cfssl CA root certificate:
+Now configure beacon.conf to add the cfssl CA root certificate:
 
 ```
 TLS:
 	CA:
 		AdditionalToSystem: true
 		CertFiles:
-			# Assuming local/<env>/config/mox.conf and local/cfssl/.
+			# Assuming local/<env>/config/beacon.conf and local/cfssl/.
 			- ../../cfssl/ca.pem
 
 [...]
@@ -129,7 +129,7 @@ Listeners:
 	public:
                 TLS:
 			KeyCerts:
-				# Assuming local/<env>/config/mox.conf and local/cfssl/.
+				# Assuming local/<env>/config/beacon.conf and local/cfssl/.
 				CertFile: ../../cfssl/wildcard.$domain.pem
 				KeyFile: ../../cfssl/wildcard.$domain-key.pem
 ```
@@ -140,7 +140,7 @@ https://github.com/letsencrypt/pebble is useful for testing with ACME. Start a
 pebble instance that uses the localhost TLS cert/key created by cfssl for its
 TLS serving. Pebble generates a new CA certificate for its own use each time it
 is started. Fetch it from https://localhost:15000/roots/0, write it to a file, and
-add it to mox.conf TLS.CA.CertFiles. See below.
+add it to beacon.conf TLS.CA.CertFiles. See below.
 
 Setup pebble, run once:
 
@@ -181,18 +181,18 @@ cat /etc/ssl/certs/ca-certificates.crt local/cfssl/ca.pem local/pebble/ca.pem >l
 rm -r local/*/data/acme/keycerts/pebble # remove existing pebble-signed certs in acme cert/key cache, they are invalid due to newly generated temp pebble ca.
 ```
 
-Edit mox.conf, adding pebble ACME and its ca.pem:
+Edit beacon.conf, adding pebble ACME and its ca.pem:
 
 ```
 ACME:
 	pebble:
 		DirectoryURL: https://localhost:14000/dir
-		ContactEmail: root@mox.example
+		ContactEmail: root@beacon.example
 TLS:
 	CA:
 		AdditionalToSystem: true
 		CertFiles:
-			# Assuming local/<env>/config/mox.conf and local/pebble/ca.pem and local/cfssl/ca.pem.
+			# Assuming local/<env>/config/beacon.conf and local/pebble/ca.pem and local/cfssl/ca.pem.
 			- ../../pebble/ca.pem
 			- ../../cfssl/ca.pem
 
@@ -231,7 +231,7 @@ for i in 0 12; do
 done
 ```
 
-With the following "tobmox.sh" script:
+With the following "tobbeacon.sh" script:
 
 ```
 #!/bin/sh
@@ -264,6 +264,6 @@ done
 - Check with https://internet.nl
 - Create git tag, push code.
 - Publish new docker image.
-- Publish signed release notes for updates.xmox.nl and update DNS record.
-- Publish new cross-referenced code/rfc to www.xmox.nl/xr/.
+- Publish signed release notes for updates.xbeacon.nl and update DNS record.
+- Publish new cross-referenced code/rfc to www.xbeacon.nl/xr/.
 - Create new release on the github page, so watchers get a notification.

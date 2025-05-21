@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/dnsbl"
-	"github.com/mjl-/mox/mlog"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/dnsbl"
+	"github.com/qompassai/beacon/mlog"
 )
 
 var dnsblHealth = struct {

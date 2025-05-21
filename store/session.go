@@ -14,9 +14,9 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
 )
 
 const sessionsPerAccount = 100            // We remove the oldest when 100th is added.
@@ -165,7 +165,7 @@ func sessionsDelayedFlush(log mlog.Log, accountName string) {
 		log.Check(err, "closing account")
 	}()
 
-	err = acc.DB.Write(mox.Context, func(tx *bstore.Tx) error {
+	err = acc.DB.Write(beacon.Context, func(tx *bstore.Tx) error {
 		for sessionToken := range sessionTokens {
 			ls, ok := sessions.accounts[accountName][sessionToken]
 			if !ok {

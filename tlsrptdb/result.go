@@ -9,9 +9,9 @@ import (
 
 	"github.com/mjl-/bstore"
 
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 // TLSResult is stored in the database to track TLS results per policy domain, day
@@ -76,7 +76,7 @@ func resultDB(ctx context.Context) (rdb *bstore.DB, rerr error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if ResultDB == nil {
-		p := mox.DataDirPath("tlsrptresult.db")
+		p := beacon.DataDirPath("tlsrptresult.db")
 		os.MkdirAll(filepath.Dir(p), 0770)
 		db, err := bstore.Open(ctx, p, &bstore.Options{Timeout: 5 * time.Second, Perm: 0660}, ResultDBTypes...)
 		if err != nil {

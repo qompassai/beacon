@@ -1,13 +1,13 @@
 // Package mlog providers helpers on top of slog.Logger.
 //
-// Packages of mox that are fit or use by external code take an *slog.Logger as
+// Packages of beacon that are fit or use by external code take an *slog.Logger as
 // parameter for logging. Internally, and packages not intended for reuse,
 // logging is done with mlog.Log. It providers convenience functions for:
 // logging error values, tracing (protocol messages), uncoditional printing
 // optionally exiting.
 //
 // An mlog provides a handler for an mlog.Log for formatting log lines. Lines are
-// logged as "logfmt" lines for "mox serve". For command-line tools, the lines are
+// logged as "logfmt" lines for "beacon serve". For command-line tools, the lines are
 // printed with colon-separated level, message and error, followed by
 // semicolon-separated attributes.
 package mlog
@@ -186,7 +186,7 @@ func errAttr(err error) slog.Attr {
 	return slog.Any("err", err)
 }
 
-// todo: consider taking a context parameter. it would require all code be refactored. we may want to do this if callers really depend on passing attrs through context. the mox code base does not do that. it makes all call sites more tedious, and requires passing around ctx everywhere, so consider carefully.
+// todo: consider taking a context parameter. it would require all code be refactored. we may want to do this if callers really depend on passing attrs through context. the beacon code base does not do that. it makes all call sites more tedious, and requires passing around ctx everywhere, so consider carefully.
 
 func (l Log) Debug(msg string, attrs ...slog.Attr) {
 	l.Logger.LogAttrs(noctx, LevelDebug, msg, attrs...)
@@ -562,7 +562,7 @@ func (h *handler) write(l slog.Level, r slog.Record) error {
 		return eb.Err
 	}
 
-	// todo: for mox serve, do writes in separate goroutine.
+	// todo: for beacon serve, do writes in separate goroutine.
 	_, err := os.Stderr.Write(b.Bytes())
 	return err
 }

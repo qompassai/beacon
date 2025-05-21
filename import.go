@@ -18,20 +18,20 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/message"
-	"github.com/mjl-/mox/metrics"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/store"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/message"
+	"github.com/qompassai/beacon/metrics"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/store"
 )
 
 // todo: add option to trust imported messages, causing us to look at Authentication-Results and Received-SPF headers and add eg verified spf/dkim/dmarc domains to our store, to jumpstart reputation.
 
-const importCommonHelp = `The mbox/maildir archive is accessed and imported by the running mox process, so
+const importCommonHelp = `The mbox/maildir archive is accessed and imported by the running beacon process, so
 it must have access to the archive files. The default suggested systemd service
-file isolates mox from most of the file system, with only the "data/" directory
+file isolates beacon from most of the file system, with only the "data/" directory
 accessible, so you may want to put the mbox/maildir archive files in a
-directory like "data/import/" to make it available to mox.
+directory like "data/import/" to make it available to beacon.
 
 By default, messages will train the junk filter based on their flags and, if
 "automatic junk flags" configuration is set, based on mailbox naming.
@@ -81,7 +81,7 @@ func cmdXImportMaildir(c *cmd) {
 	c.help = `Import a maildir into an account by directly accessing the data directory.
 
 
-See "mox help import maildir" for details.
+See "beacon help import maildir" for details.
 `
 	xcmdXImport(false, c)
 }
@@ -91,7 +91,7 @@ func cmdXImportMbox(c *cmd) {
 	c.params = "accountdir mailboxname mbox"
 	c.help = `Import an mbox into an account by directly accessing the data directory.
 
-See "mox help import mbox" for details.
+See "beacon help import mbox" for details.
 `
 	xcmdXImport(true, c)
 }
@@ -105,16 +105,16 @@ func xcmdXImport(mbox bool, c *cmd) {
 	accountdir := args[0]
 	account := filepath.Base(accountdir)
 
-	// Set up the mox config so the account can be opened.
+	// Set up the beacon config so the account can be opened.
 	if filepath.Base(filepath.Dir(accountdir)) != "accounts" {
 		log.Fatalf("accountdir must be of the form .../accounts/<name>")
 	}
 	var err error
-	mox.Conf.Static.DataDir, err = filepath.Abs(filepath.Dir(filepath.Dir(accountdir)))
+	beacon.Conf.Static.DataDir, err = filepath.Abs(filepath.Dir(filepath.Dir(accountdir)))
 	xcheckf(err, "making absolute datadir")
-	mox.ConfigStaticPath = "fake.conf"
-	mox.Conf.DynamicLastCheck = time.Now().Add(time.Hour) // Silence errors about config file.
-	mox.Conf.Dynamic.Accounts = map[string]config.Account{
+	beacon.ConfigStaticPath = "fake.conf"
+	beacon.Conf.DynamicLastCheck = time.Now().Add(time.Hour) // Silence errors about config file.
+	beacon.Conf.Dynamic.Accounts = map[string]config.Account{
 		account: {},
 	}
 	defer store.Switchboard()()

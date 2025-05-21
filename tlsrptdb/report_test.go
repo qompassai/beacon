@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mjl-/mox/config"
-	"github.com/mjl-/mox/dns"
-	"github.com/mjl-/mox/mlog"
-	"github.com/mjl-/mox/mox-"
-	"github.com/mjl-/mox/tlsrpt"
+	"github.com/qompassai/beacon/config"
+	"github.com/qompassai/beacon/dns"
+	"github.com/qompassai/beacon/mlog"
+	"github.com/qompassai/beacon/beacon-"
+	"github.com/qompassai/beacon/tlsrpt"
 )
 
 var ctxbg = context.Background()
@@ -32,7 +32,7 @@ const reportJSON = `{
          "policy-type": "sts",
          "policy-string": ["version: STSv1","mode: testing",
                "mx: *.mail.company-y.example","max_age: 86400"],
-         "policy-domain": "test.xmox.nl",
+         "policy-domain": "test.xbeacon.nl",
          "mx-host": ["*.mail.company-y.example"]
        },
        "summary": {
@@ -63,19 +63,19 @@ const reportJSON = `{
    }`
 
 func TestReport(t *testing.T) {
-	mox.Context = ctxbg
-	mox.Shutdown, mox.ShutdownCancel = context.WithCancel(ctxbg)
-	mox.ConfigStaticPath = filepath.FromSlash("../testdata/tlsrpt/fake.conf")
-	mox.Conf.Static.DataDir = "."
+	beacon.Context = ctxbg
+	beacon.Shutdown, beacon.ShutdownCancel = context.WithCancel(ctxbg)
+	beacon.ConfigStaticPath = filepath.FromSlash("../testdata/tlsrpt/fake.conf")
+	beacon.Conf.Static.DataDir = "."
 	// Recognize as configured domain.
-	mox.Conf.Dynamic.Domains = map[string]config.Domain{
-		"test.xmox.nl": {},
+	beacon.Conf.Dynamic.Domains = map[string]config.Domain{
+		"test.xbeacon.nl": {},
 	}
 
-	dbpath := mox.DataDirPath("tlsrpt.db")
+	dbpath := beacon.DataDirPath("tlsrpt.db")
 	os.MkdirAll(filepath.Dir(dbpath), 0770)
 	defer os.Remove(dbpath)
-	defer os.Remove(mox.DataDirPath("tlsrptresult.db"))
+	defer os.Remove(beacon.DataDirPath("tlsrptresult.db"))
 
 	if err := Init(); err != nil {
 		t.Fatalf("init database: %s", err)
@@ -97,7 +97,7 @@ func TestReport(t *testing.T) {
 			t.Fatalf("parsing TLSRPT from message %q: %s", file.Name(), err)
 		}
 		report := reportJSON.Convert()
-		if err := AddReport(ctxbg, pkglog, dns.Domain{ASCII: "mox.example"}, "tlsrpt@mox.example", false, &report); err != nil {
+		if err := AddReport(ctxbg, pkglog, dns.Domain{ASCII: "beacon.example"}, "tlsrpt@beacon.example", false, &report); err != nil {
 			t.Fatalf("adding report to database: %s", err)
 		}
 	}
@@ -129,7 +129,7 @@ func TestReport(t *testing.T) {
 
 	start, _ := time.Parse(time.RFC3339, "2016-04-01T00:00:00Z")
 	end, _ := time.Parse(time.RFC3339, "2016-04-01T23:59:59Z")
-	records, err = RecordsPeriodDomain(ctxbg, start, end, dns.Domain{ASCII: "test.xmox.nl"})
+	records, err = RecordsPeriodDomain(ctxbg, start, end, dns.Domain{ASCII: "test.xbeacon.nl"})
 	if err != nil || len(records) != 1 {
 		t.Fatalf("got err %v, records %#v, expected no error with 1 record", err, records)
 	}
