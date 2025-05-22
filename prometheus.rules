@@ -19,46 +19,46 @@ groups:
       summary: delivery from queue had a 4th or later attempt fail
 
   - alert: beacon-smtpserver-errors
-    expr: increase(mox_smtpserver_errors_total[1h]) > 0
+    expr: increase(beacon_smtpserver_errors_total[1h]) > 0
     annotations:
       summary: errors in smtpserver operation
 
   - alert: beacon-webserver-errors
-    expr: increase(mox_httpserver_request_duration_seconds_count{code=~"5.."}[1h]) > 0
+    expr: increase(beacon_httpserver_request_duration_seconds_count{code=~"5.."}[1h]) > 0
     annotations:
       summary: http 5xx responses from webserver
 
-  - alert: mox-submission-errors
-    expr: increase(mox_smtpserver_submission_total{result=~".*error"}[1h]) > 0
+  - alert: beacon-submission-errors
+    expr: increase(beacon_smtpserver_submission_total{result=~".*error"}[1h]) > 0
     annotations:
       summary: smtp submission errors
 
-  - alert: mox-delivery-errors
-    expr: increase(mox_smtpserver_delivery_total{result=~".*error"}[1h]) > 0
+  - alert: beacon-delivery-errors
+    expr: increase(beacon_smtpserver_delivery_total{result=~".*error"}[1h]) > 0
     annotations:
       summary: smtp delivery errors
 
-  - alert: mox-webmail-errors
-    expr: increase(mox_webmail_errors_total[1h]) > 0
+  - alert: beacon-webmail-errors
+    expr: increase(beacon_webmail_errors_total[1h]) > 0
     annotations:
       summary: errors in webmail operation
 
-  - alert: mox-webmailsubmission-errors
-    expr: increase(mox_webmail_submission_total{result=~".*error"}[1h]) > 0
+  - alert: beacon-webmailsubmission-errors
+    expr: increase(beacon_webmail_submission_total{result=~".*error"}[1h]) > 0
     annotations:
       summary: webmail submission errors
 
-  - alert: mox-sherpa-server-errors
-    expr: increase(sherpa_errors_total{api=~"mox.*",code=~"server:.*"}[1h]) > 0
+  - alert: beacon-sherpa-server-errors
+    expr: increase(sherpa_errors_total{api=~"beacon.*",code=~"server:.*"}[1h]) > 0
     annotations:
       summary: sherpa web api server errors
 
-  # the alerts below can be used to keep a closer eye or when starting to use mox,
+  # the alerts below can be used to keep a closer eye or when starting to use beacon,
   # but can be noisy, or you may not be able to prevent them.
 
   # change period to match your expected incoming message rate.
-  - alert: mox-no-deliveries
-    expr: sum(rate(mox_smtpserver_delivery_total{result="delivered"}[6h])) == 0
+  - alert: beacon-no-deliveries
+    expr: sum(rate(beacon_smtpserver_delivery_total{result="delivered"}[6h])) == 0
     annotations:
       summary: no mail delivered for 6 hours
 
@@ -71,8 +71,8 @@ groups:
   # may be noisy. can be caused by someone trying to send email as you. and
   # anyone can send these reports. you are not in control over when this fires,
   # so you may want to silence it.
-  - alert: mox-dmarc-rejects
-    expr: increase(mox_dmarcdb_policy_evaluated_total{disposition!="none"}[1h]) > 0
+  - alert: beacon-dmarc-rejects
+    expr: increase(beacon_dmarcdb_policy_evaluated_total{disposition!="none"}[1h]) > 0
     annotations:
       summary: dmarc reports about rejects/quarantines due to failing dmarc check
 
