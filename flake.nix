@@ -1,4 +1,4 @@
-# ~/.GH/Qompass/Go/beacon/flake.nix
+# /qompassai/beacon/flake.nix
 # ---------------------------------
 # Copyright (C) 2025 Qompass AI, All rights reserved
 
@@ -9,12 +9,10 @@
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
-    # Dev shell configuration
     devShells.${system}.default = pkgs.mkShell {
       packages = [ pkgs.go pkgs.zig ];
     };
 
-    # Add package output
     packages.${system}.default = pkgs.stdenv.mkDerivation {
       name = "beacon";
       src = ./.;
